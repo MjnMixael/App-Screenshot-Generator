@@ -135,6 +135,8 @@ public sealed class MainViewModel : ObservableObject
     public string OutputDir { get => _outputDir; set => Set(ref _outputDir, value); }
     private string _format = "png";
     public string Format { get => _format; set { if (Set(ref _format, value)) Edited(); } }
+    private bool _saveOriginals = true;
+    public bool SaveOriginals { get => _saveOriginals; set => Set(ref _saveOriginals, value); }
 
     // --- device chrome cleanup ---
     private bool _cleanStatusBar = true;
@@ -235,7 +237,7 @@ public sealed class MainViewModel : ObservableObject
             },
         },
         Screens = Screens.Select(s => s.ToSpec()).ToList(),
-        Output = new OutputConfig { Dir = OutputDir, Format = Format },
+        Output = new OutputConfig { Dir = OutputDir, Format = Format, SaveOriginals = SaveOriginals },
         Cleanup = new CleanupConfig
         {
             StatusBar = CleanStatusBar,
@@ -336,7 +338,7 @@ public sealed class MainViewModel : ObservableObject
             FrameType = cfg.Style.Frame.Type; BezelColor = cfg.Style.Frame.BezelColor;
             BezelWidthPct = cfg.Style.Frame.BezelWidthPct; CornerRadiusPct = cfg.Style.Frame.CornerRadiusPct;
             Island = cfg.Style.Frame.Island;
-            OutputDir = cfg.Output.Dir; Format = cfg.Output.Format;
+            OutputDir = cfg.Output.Dir; Format = cfg.Output.Format; SaveOriginals = cfg.Output.SaveOriginals;
             CleanStatusBar = cfg.Cleanup.StatusBar; StatusBarPct = cfg.Cleanup.StatusBarPct;
             CleanDebugBanner = cfg.Cleanup.DebugBanner; DebugBannerPct = cfg.Cleanup.DebugBannerPct;
             CleanFill = cfg.Cleanup.Fill;
@@ -429,7 +431,12 @@ public sealed class MainViewModel : ObservableObject
             }
         }
 
-        Status = $"Generated {ok} image(s) to {outDir}" + (errors.Count > 0 ? $"  ({errors.Count} skipped)" : "");
+        var screenList = cfg.Screens.Select((s, i) => (Spec: s, Index: i + 1)).ToList();
+        int originals = _renderer.SaveOriginals(cfg, screenList, outDir);
+
+        Status = $"Generated {ok} image(s) to {outDir}"
+               + (originals > 0 ? $" (+{originals} originals)" : "")
+               + (errors.Count > 0 ? $"  ({errors.Count} skipped)" : "");
         if (errors.Count > 0)
             MessageBox.Show(string.Join("\n", errors.Take(20)), "Some images were skipped",
                 MessageBoxButton.OK, MessageBoxImage.Warning);

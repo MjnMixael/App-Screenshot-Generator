@@ -61,6 +61,42 @@ public sealed class Renderer : IDisposable
         };
     }
 
+    /// <summary>Save the source shots (one per screen, NN) into a separate folder so
+    /// the un-framed originals are kept alongside the generated set. The same device-
+    /// chrome cleanup (status bar / debug banner) is applied; when cleanup is off the
+    /// raw file is copied byte-for-byte.</summary>
+    public int SaveOriginals(Config cfg, IReadOnlyList<(ScreenSpec Spec, int Index)> screens, string outDir)
+    {
+        if (!cfg.Output.SaveOriginals) return 0;
+
+        string dir = Path.IsPathRooted(cfg.Output.OriginalsDir)
+            ? cfg.Output.OriginalsDir
+            : Path.Combine(outDir, cfg.Output.OriginalsDir);
+        Directory.CreateDirectory(dir);
+
+        int n = 0;
+        foreach (var (spec, index) in screens)
+        {
+            var src = string.IsNullOrWhiteSpace(spec.Image) ? "" : cfg.ResolvePath(spec.Image);
+            if (!File.Exists(src)) continue;
+
+            if (cfg.Cleanup.Enabled)
+            {
+                var cleaned = CleanedSource(cfg, src, LoadImage(src)); // cached
+                using var data = cleaned.Encode(SKEncodedImageFormat.Png, 100);
+                File.WriteAllBytes(Path.Combine(dir, $"{index:D2}.png"), data.ToArray());
+            }
+            else
+            {
+                string ext = Path.GetExtension(src);
+                if (string.IsNullOrEmpty(ext)) ext = ".png";
+                File.Copy(src, Path.Combine(dir, $"{index:D2}{ext}"), overwrite: true);
+            }
+            n++;
+        }
+        return n;
+    }
+
     /// <summary>Render to file with full store-compliance assertions.</summary>
     public void Render(Config cfg, PlanItem item)
     {

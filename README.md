@@ -64,7 +64,11 @@ dotnet run --project src/ScreenGen -- generate --config screenshots.yaml
 ```
 
 Output is written under `out/`, mirroring the store folder tree
-(`apple/iOS Phones  6.9/01.png`, `android/Android Phones  169/01.png`, …).
+(`apple/iOS Phones  6.9/01.png`, `android/Android Phones  169/01.png`, …). The
+un-framed source shots are also saved to `out/originals/` (`NN.png`) with the same
+device-chrome cleanup applied (status bar / debug banner removed), so you get clean
+plain screenshots too — toggle with `output.save_originals` / `output.originals_dir`.
+(When cleanup is off, the raw file is copied byte-for-byte.)
 
 ### Visual Studio
 

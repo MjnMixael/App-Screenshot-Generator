@@ -121,6 +121,11 @@ namespace ScreenGen
                 else
                     Console.WriteLine($"  {Path.GetRelativePath(outDir, item.OutputPath)}");
             }
+
+            int originals = renderer.SaveOriginals(cfg, screens, outDir);
+            if (originals > 0)
+                Console.WriteLine($"Copied {originals} original screenshot(s) to {cfg.Output.OriginalsDir}/");
+
             Console.WriteLine("Done.");
             return 0;
         }
@@ -204,6 +209,8 @@ namespace ScreenGen
         {
             Console.WriteLine($"DRY RUN — {items.Count} image(s), output dir: {outDir}");
             Console.WriteLine($"project: {cfg.Project}  format: {cfg.Output.Format}");
+            if (cfg.Output.SaveOriginals)
+                Console.WriteLine($"originals: raw shots copied to {cfg.Output.OriginalsDir}/");
             Console.WriteLine();
             foreach (var grp in items.GroupBy(i => i.Target.Name))
             {

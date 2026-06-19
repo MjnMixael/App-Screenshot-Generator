@@ -237,6 +237,8 @@
                     <TextBox Text="{Binding OutputDir, UpdateSourceTrigger=PropertyChanged}"/>
                     <TextBlock Text="Format" Style="{StaticResource FieldLabel}"/>
                     <ComboBox ItemsSource="{Binding Formats}" SelectedItem="{Binding Format}"/>
+                    <CheckBox Content="Also save original screenshots (originals/)" IsChecked="{Binding SaveOriginals}"
+                              Foreground="#FFD6D6D6" Margin="0,6,0,2"/>
 
                     <TextBlock Text="DEVICE CHROME (hide Android)" Style="{StaticResource Section}"/>
                     <CheckBox Content="Hide status bar (clock/battery/icons)" IsChecked="{Binding CleanStatusBar}"

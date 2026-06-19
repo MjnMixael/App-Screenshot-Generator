@@ -112,6 +112,8 @@ public sealed class OutputConfig
 {
     public string Dir { get; set; } = "out";
     public string Format { get; set; } = "png";       // png | jpeg
+    public bool SaveOriginals { get; set; } = true;    // also copy the raw source shots
+    public string OriginalsDir { get; set; } = "originals"; // under Dir, or absolute
     [YamlIgnore] public OutputFormat FormatEnum => Enums.Parse(Format, OutputFormat.Png);
 }
 
