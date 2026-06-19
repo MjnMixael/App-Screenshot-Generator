@@ -1,0 +1,91 @@
+# Example project config — a generic "Demo App".
+# Paths (font, screens, output) resolve relative to THIS file's directory.
+# Copy this file per app, swap the images + captions, and re-run.
+#
+# The sample screens under shots/ are fictional placeholder UI for a made-up
+# productivity app — swap them for your own screenshots.
+
+project: Demo App
+
+style:
+  background:
+    type: gradient            # gradient | flat
+    center: "#323234"         # vignette center (lighter)
+    edge: "#1F1F21"           # vignette edge (darker)
+    # color: "#2B2B2D"        # used when type: flat
+
+  title_color: "#FFFFFF"
+  subtitle_color: "#C9C9CC"
+
+  font:
+    title: assets/fonts/Inter-VariableFont_opsz,wght.ttf
+    subtitle: assets/fonts/Inter-VariableFont_opsz,wght.ttf
+    title_weight: 600         # >=600 renders emboldened (see README note on variable fonts)
+    subtitle_weight: 400
+
+  title:
+    uppercase: true
+    letter_spacing: 0.12      # em-fraction tracking
+    max_size_pct: 0.060       # title cap height as a fraction of canvas height
+
+  layout:
+    top_margin_pct: 0.06
+    text_block_gap_pct: 0.022 # gap between title and subtitle
+    title_to_device_gap_pct: 0.04
+    device_width_pct: 0.82    # device SIZE as a fraction of canvas width
+                              # (smaller fits fully inside; larger bleeds off the bottom)
+
+  frame:
+    type: stylized            # stylized | none
+    bezel_color: "#0B0B0D"
+    bezel_width_pct: 0.013    # fraction of device width (thin modern bezel)
+    corner_radius_pct: 0.09   # fraction of device width
+    # Camera cutout. Default 'none' on purpose: a Dynamic Island / notch is
+    # device-identifying trade dress and can trip Apple's "frame must reflect the
+    # actual device" rule (and is plain wrong on 6.5"/5.5", which never had a
+    # Dynamic Island). A plain bezel reads as generic decoration. Opt in per
+    # project if you want it (ideally only on the 6.9" lead size).
+    island: none              # none | dynamic | notch  (phones only)
+
+screens:                      # order -> 01.png .. 0N.png
+  - { image: shots/shot-1.png, title: "Everything at a Glance", subtitle: "Your day summarized the moment you open the app" }
+  - { image: shots/shot-2.png, title: "Track Every Project",    subtitle: "See progress across all your work in one place" }
+  - { image: shots/shot-3.png, title: "Dive Into the Details",  subtitle: "Tap any item for the full picture and next steps" }
+  - { image: shots/shot-4.png, title: "Plan Your Day",          subtitle: "A clear timeline keeps every meeting on track" }
+  - { image: shots/shot-5.png, title: "Made Yours",             subtitle: "Preferences, privacy, and settings in one spot" }
+
+output:
+  dir: out                    # mirrors apple/.. and android/.. subfolders
+  format: png                 # png | jpeg ; always flattened to RGB (no alpha)
+  save_originals: true        # also save un-framed source shots (NN, chrome-cleaned)
+  originals_dir: originals    # under dir (or an absolute path)
+
+# Hide device chrome so App Store shots show no hint of Android. The bundled
+# sample shots are already clean (no status bar / debug banner), so it's off
+# here — turn these on for real Android captures. See the README for details.
+cleanup:
+  status_bar: false           # paint over the top status bar (clock/battery/icons)
+  status_bar_pct: 0.045       # band height as a fraction of source height
+  debug_banner: false         # cover Flutter's top-right debug ribbon
+  debug_banner_pct: 0.16      # corner size as a fraction of source width
+  fill: auto                  # auto = sample the background just below the bar; or "#RRGGBB"
+
+# Which targets to render (names from targets.yaml).
+targets:
+  - apple_phone_6_9
+  - apple_ipad_13
+  - android_phone
+  - android_tablet_7
+  - android_tablet_10
+
+# Optional: override or add target specs inline without editing targets.yaml.
+# Anything omitted falls back to the seed file.
+# target_defs:
+#   apple_phone_6_9:
+#     width: 1320
+#     height: 2868
+#     class: phone
+#     store: apple
+#     output_subfolder: "apple/iOS Phones  6.9"
+#     # frame: stylized
+#     # screen_fit: cover

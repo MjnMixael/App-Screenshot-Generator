@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\ScreenGen\ScreenGen.csproj" />
+  </ItemGroup>
+
+  <!-- WinForms is referenced only for the native ColorDialog (aliased in
+       ColorPickerService). Drop its implicit global usings so WPF types
+       (Application, MessageBox, OpenFileDialog) stay unambiguous. -->
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp.Views.WPF" Version="3.119.4" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>ScreenGen.App</AssemblyName>
+    <RootNamespace>ScreenGen.App</RootNamespace>
+  </PropertyGroup>
+
+  <!-- Bundle the seed matrix + default font next to the exe so the app works
+       standalone (falls back to these when no config dir provides them). -->
+  <ItemGroup>
+    <None Include="..\..\targets.yaml" Link="targets.yaml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\assets\fonts\**\*.ttf" Link="assets\fonts\%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ScreenGen.App": {
+      "commandName": "Project",
+      "workingDirectory": "..\\.."
+    }
+  }
+}

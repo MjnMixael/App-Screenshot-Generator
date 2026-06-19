@@ -1,0 +1,72 @@
+# Device target matrix — DATA, not code.
+#
+# Store requirements change over time, so the full target list lives here and is
+# never hardcoded in source. Each target is one record. Add / edit / remove a
+# size when Apple or Google update their specs and re-run — no code change.
+#
+# Fields per target:
+#   store             apple | google  (drives --only filtering + which compliance
+#                                       rules apply; Google enforces aspect 1:2..2:1,
+#                                       Apple allows taller phone shots)
+#   width, height     output pixels (must be positive and EVEN)
+#   class             phone | tablet  (drives default frame + screen_fit:
+#                                       phone -> cover, tablet -> contain)
+#   output_subfolder  where NN.png files are written, under output.dir
+#   frame             optional  stylized | none | realistic   (default: style.frame.type)
+#   screen_fit        optional  cover | contain                (default: by class)
+#
+# A project's screenshots.yaml selects which of these to render via `targets:`
+# and may override any field inline via `target_defs:`.
+
+targets:
+  # --- Apple ---
+  apple_phone_6_9:
+    store: apple
+    width: 1320
+    height: 2868
+    class: phone
+    output_subfolder: "apple/iOS Phones  6.9"
+  apple_phone_6_5:
+    store: apple
+    width: 1242
+    height: 2688
+    class: phone
+    output_subfolder: "apple/iOS Phones  6.5"
+  apple_phone_5_5:
+    store: apple
+    width: 1242
+    height: 2208
+    class: phone
+    output_subfolder: "apple/iOS Phones  5.5"
+  apple_ipad_13:
+    store: apple
+    width: 2064
+    height: 2752
+    class: tablet
+    output_subfolder: "apple/iOS iPad  13"
+  apple_ipad_12_9:
+    store: apple
+    width: 2048
+    height: 2732
+    class: tablet
+    output_subfolder: "apple/iOS iPad Pro (2nd)  12.9"
+
+  # --- Google Play ---
+  android_phone:
+    store: google
+    width: 1080
+    height: 1920
+    class: phone
+    output_subfolder: "android/Android Phones  169"
+  android_tablet_7:
+    store: google
+    width: 1200
+    height: 1920
+    class: tablet
+    output_subfolder: "android/Android 7 Tablets  169"
+  android_tablet_10:
+    store: google
+    width: 1600
+    height: 2560
+    class: tablet
+    output_subfolder: "android/Android 10 Tablets  169"

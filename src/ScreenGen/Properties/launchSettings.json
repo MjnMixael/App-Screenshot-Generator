@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "Generate (all)": {
+      "commandName": "Project",
+      "workingDirectory": "..\\..",
+      "commandLineArgs": "generate --config screenshots.yaml"
+    },
+    "Generate (dry-run)": {
+      "commandName": "Project",
+      "workingDirectory": "..\\..",
+      "commandLineArgs": "generate --config screenshots.yaml --dry-run"
+    }
+  }
+}
