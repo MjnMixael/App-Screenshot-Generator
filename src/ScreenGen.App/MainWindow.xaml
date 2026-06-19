@@ -238,6 +238,24 @@
                     <TextBlock Text="Format" Style="{StaticResource FieldLabel}"/>
                     <ComboBox ItemsSource="{Binding Formats}" SelectedItem="{Binding Format}"/>
 
+                    <TextBlock Text="DEVICE CHROME (hide Android)" Style="{StaticResource Section}"/>
+                    <CheckBox Content="Hide status bar (clock/battery/icons)" IsChecked="{Binding CleanStatusBar}"
+                              Foreground="#FFD6D6D6" Margin="0,2"/>
+                    <TextBlock Style="{StaticResource FieldLabel}"><Run Text="Status bar height "/><Run Text="{Binding StatusBarPct, StringFormat=0.000, Mode=OneWay}"/></TextBlock>
+                    <Slider Minimum="0" Maximum="0.12" Value="{Binding StatusBarPct}"/>
+                    <CheckBox Content="Hide Flutter debug banner (top-right)" IsChecked="{Binding CleanDebugBanner}"
+                              Foreground="#FFD6D6D6" Margin="0,6,0,2"/>
+                    <TextBlock Style="{StaticResource FieldLabel}"><Run Text="Debug banner size "/><Run Text="{Binding DebugBannerPct, StringFormat=0.000, Mode=OneWay}"/></TextBlock>
+                    <Slider Minimum="0" Maximum="0.35" Value="{Binding DebugBannerPct}"/>
+                    <TextBlock Text="Fill (&quot;auto&quot; samples the background, or pick a color)" Style="{StaticResource FieldLabel}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Style="{StaticResource Swatch}"
+                                Background="{Binding CleanFill, Converter={StaticResource HexBrush}}"
+                                Command="{Binding PickColorCommand}" CommandParameter="CleanFill"/>
+                        <TextBox Grid.Column="1" Text="{Binding CleanFill, UpdateSourceTrigger=PropertyChanged}" Margin="0,2"/>
+                    </Grid>
+
                     <TextBlock Text="TARGETS TO GENERATE" Style="{StaticResource Section}"/>
                     <ItemsControl ItemsSource="{Binding Targets}">
                         <ItemsControl.ItemTemplate>

@@ -3,6 +3,7 @@
 out/
 # Device captures pulled over adb
 captures/
+# Personal per-app configs kept in the repo root (not part of the tool)
 
 ### C#
 # Build results

@@ -89,8 +89,11 @@ public sealed class Renderer : IDisposable
         if (surface is null) throw new InvalidOperationException("failed to create render surface");
         var canvas = surface.Canvas;
 
+        // Hide device chrome (Android status bar / Flutter debug banner) if enabled.
+        var shot = item.SourceExists ? CleanedSource(cfg, item.SourcePath, screenshot) : screenshot;
+
         DrawBackground(cfg, canvas, layout.W, layout.H);
-        DeviceFrameFactory.Create(item.Frame).Render(canvas, screenshot, layout, cfg, item.Target);
+        DeviceFrameFactory.Create(item.Frame).Render(canvas, shot, layout, cfg, item.Target);
         DrawText(cfg, canvas, layout);
 
         canvas.Flush();
@@ -183,6 +186,71 @@ public sealed class Renderer : IDisposable
         return face;
     }
 
+    private readonly Dictionary<string, SKImage> _cleanCache = new(StringComparer.OrdinalIgnoreCase);
+    private string _cleanSig = "";
+
+    /// <summary>Return a chrome-cleaned copy of the source (cached), or the original
+    /// when cleanup is disabled. Cache is keyed by path and reset when settings change.</summary>
+    private SKImage CleanedSource(Config cfg, string path, SKImage src)
+    {
+        var cc = cfg.Cleanup;
+        if (!cc.Enabled) return src;
+
+        string sig = $"{cc.StatusBar}|{cc.StatusBarPct}|{cc.DebugBanner}|{cc.DebugBannerPct}|{cc.Fill}";
+        if (sig != _cleanSig)
+        {
+            foreach (var c in _cleanCache.Values) c.Dispose();
+            _cleanCache.Clear();
+            _cleanSig = sig;
+        }
+        if (_cleanCache.TryGetValue(path, out var cached)) return cached;
+
+        var cleaned = BuildCleaned(src, cc);
+        _cleanCache[path] = cleaned;
+        return cleaned;
+    }
+
+    private static SKImage BuildCleaned(SKImage src, CleanupConfig cc)
+    {
+        int w = src.Width, h = src.Height;
+        using var surface = SKSurface.Create(new SKImageInfo(w, h));
+        var canvas = surface.Canvas;
+        canvas.DrawImage(src, 0, 0);
+
+        float bandH = cc.StatusBar ? (float)(cc.StatusBarPct * h) : 0f;
+        using var paint = new SKPaint { Color = ResolveFill(cc, src, bandH), IsAntialias = false };
+
+        if (cc.StatusBar)
+            canvas.DrawRect(new SKRect(0, 0, w, bandH), paint);
+
+        if (cc.DebugBanner)
+        {
+            float leg = (float)(cc.DebugBannerPct * w);
+            using var tri = new SKPath();
+            tri.MoveTo(w - leg, 0);
+            tri.LineTo(w, 0);
+            tri.LineTo(w, leg);
+            tri.Close();
+            canvas.DrawPath(tri, paint);
+        }
+
+        canvas.Flush();
+        return surface.Snapshot();
+    }
+
+    private static SKColor ResolveFill(CleanupConfig cc, SKImage src, float bandH)
+    {
+        if (!cc.FillIsAuto && SKColor.TryParse(cc.Fill, out var configured))
+            return configured;
+
+        // Auto: sample just below the status bar, near the left edge (away from the
+        // top-right debug banner) to pick up a solid background/header color.
+        using var bmp = SKBitmap.FromImage(src);
+        int x = Math.Clamp((int)(src.Width * 0.06f), 0, src.Width - 1);
+        int y = Math.Clamp((int)(bandH + Math.Max(2f, src.Height * 0.006f)), 0, src.Height - 1);
+        return bmp.GetPixel(x, y);
+    }
+
     private SKImage LoadImage(string path)
     {
         if (_imageCache.TryGetValue(path, out var cached)) return cached;
@@ -217,8 +285,10 @@ public sealed class Renderer : IDisposable
     {
         foreach (var f in _faceCache.Values) f.Dispose();
         foreach (var img in _imageCache.Values) img.Dispose();
+        foreach (var img in _cleanCache.Values) img.Dispose();
         _placeholder?.Dispose();
         _faceCache.Clear();
         _imageCache.Clear();
+        _cleanCache.Clear();
     }
 }

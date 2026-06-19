@@ -18,6 +18,7 @@ public sealed class Config
     public StyleConfig Style { get; set; } = new();
     public List<ScreenSpec> Screens { get; set; } = new();
     public OutputConfig Output { get; set; } = new();
+    public CleanupConfig Cleanup { get; set; } = new();
     public List<string> Targets { get; set; } = new();
     public Dictionary<string, TargetDto>? TargetDefs { get; set; }
 
@@ -80,6 +81,24 @@ public sealed class FrameConfig
     public string Island { get; set; } = "none";      // none | dynamic | notch (phones only)
     [YamlIgnore] public FrameType TypeEnum => Enums.Parse(Type, FrameType.Stylized);
     [YamlIgnore] public IslandType IslandEnum => Enums.Parse(Island, IslandType.None);
+}
+
+/// <summary>
+/// Hides device chrome from source screenshots so App Store shots show no hint of
+/// Android: paints over the top status bar (clock/battery/icons) and Flutter's
+/// top-right debug ribbon. On by default. `fill` is "auto" (samples the pixel
+/// just below the status bar to extend a solid background up) or a hex color.
+/// </summary>
+public sealed class CleanupConfig
+{
+    public bool StatusBar { get; set; } = true;
+    public double StatusBarPct { get; set; } = 0.045;   // fraction of source height
+    public bool DebugBanner { get; set; } = true;
+    public double DebugBannerPct { get; set; } = 0.16;  // corner leg, fraction of source width
+    public string Fill { get; set; } = "auto";          // auto | #RRGGBB
+
+    [YamlIgnore] public bool Enabled => StatusBar || DebugBanner;
+    [YamlIgnore] public bool FillIsAuto => string.Equals(Fill?.Trim(), "auto", StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed class ScreenSpec
@@ -177,6 +196,11 @@ public static class ConfigLoader
         CheckFraction("style.layout.title_to_device_gap_pct", L.TitleToDeviceGapPct, errors);
         CheckFraction("style.layout.device_width_pct", L.DeviceWidthPct, errors);
         CheckFraction("style.title.max_size_pct", c.Style.Title.MaxSizePct, errors);
+
+        CheckFraction("cleanup.status_bar_pct", c.Cleanup.StatusBarPct, errors, allowZero: true);
+        CheckFraction("cleanup.debug_banner_pct", c.Cleanup.DebugBannerPct, errors, allowZero: true);
+        if (!c.Cleanup.FillIsAuto && !SKColor.TryParse(c.Cleanup.Fill, out _))
+            errors.Add($"cleanup.fill must be 'auto' or a #RRGGBB color (got '{c.Cleanup.Fill}')");
 
         if (errors.Count > 0)
             throw new ConfigException("Invalid config:\n  - " + string.Join("\n  - ", errors));

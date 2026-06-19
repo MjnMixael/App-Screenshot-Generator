@@ -136,6 +136,18 @@ public sealed class MainViewModel : ObservableObject
     private string _format = "png";
     public string Format { get => _format; set { if (Set(ref _format, value)) Edited(); } }
 
+    // --- device chrome cleanup ---
+    private bool _cleanStatusBar = true;
+    public bool CleanStatusBar { get => _cleanStatusBar; set { if (Set(ref _cleanStatusBar, value)) Edited(); } }
+    private double _statusBarPct = 0.045;
+    public double StatusBarPct { get => _statusBarPct; set { if (Set(ref _statusBarPct, value)) Edited(); } }
+    private bool _cleanDebugBanner = true;
+    public bool CleanDebugBanner { get => _cleanDebugBanner; set { if (Set(ref _cleanDebugBanner, value)) Edited(); } }
+    private double _debugBannerPct = 0.16;
+    public double DebugBannerPct { get => _debugBannerPct; set { if (Set(ref _debugBannerPct, value)) Edited(); } }
+    private string _cleanFill = "auto";
+    public string CleanFill { get => _cleanFill; set { if (Set(ref _cleanFill, value)) Edited(); } }
+
     // --- collections ---
     public ObservableCollection<ScreenItem> Screens { get; } = new();
     private ScreenItem? _selectedScreen;
@@ -224,6 +236,14 @@ public sealed class MainViewModel : ObservableObject
         },
         Screens = Screens.Select(s => s.ToSpec()).ToList(),
         Output = new OutputConfig { Dir = OutputDir, Format = Format },
+        Cleanup = new CleanupConfig
+        {
+            StatusBar = CleanStatusBar,
+            StatusBarPct = StatusBarPct,
+            DebugBanner = CleanDebugBanner,
+            DebugBannerPct = DebugBannerPct,
+            Fill = CleanFill,
+        },
         Targets = Targets.Where(t => t.IsSelected).Select(t => t.Name).ToList(),
         TargetDefs = _loadedDefs,
     };
@@ -317,6 +337,9 @@ public sealed class MainViewModel : ObservableObject
             BezelWidthPct = cfg.Style.Frame.BezelWidthPct; CornerRadiusPct = cfg.Style.Frame.CornerRadiusPct;
             Island = cfg.Style.Frame.Island;
             OutputDir = cfg.Output.Dir; Format = cfg.Output.Format;
+            CleanStatusBar = cfg.Cleanup.StatusBar; StatusBarPct = cfg.Cleanup.StatusBarPct;
+            CleanDebugBanner = cfg.Cleanup.DebugBanner; DebugBannerPct = cfg.Cleanup.DebugBannerPct;
+            CleanFill = cfg.Cleanup.Fill;
 
             foreach (var s in Screens) s.PropertyChanged -= OnScreenChanged;
             Screens.Clear();
@@ -603,6 +626,7 @@ public sealed class MainViewModel : ObservableObject
         nameof(TitleColor) => TitleColor,
         nameof(SubtitleColor) => SubtitleColor,
         nameof(BezelColor) => BezelColor,
+        nameof(CleanFill) => CleanFill,
         _ => "#000000",
     };
 
@@ -616,6 +640,7 @@ public sealed class MainViewModel : ObservableObject
             case nameof(TitleColor): TitleColor = value; break;
             case nameof(SubtitleColor): SubtitleColor = value; break;
             case nameof(BezelColor): BezelColor = value; break;
+            case nameof(CleanFill): CleanFill = value; break;
         }
     }
 

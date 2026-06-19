@@ -41,6 +41,20 @@ over USB — no manual file copying:
 Requires Android **platform-tools** (`adb`); it's auto-located on your PATH, via
 `ANDROID_HOME`/`ANDROID_SDK_ROOT`, or in `%LOCALAPPDATA%\Android\Sdk`.
 
+### Hide device chrome (no hint of Android)
+
+Apple rejects screenshots that reveal another platform. The **DEVICE CHROME**
+section (config `cleanup:`) paints over the giveaways on the source shot:
+
+- **Hide status bar** — fills a top band over the clock/battery/signal icons.
+- **Hide Flutter debug banner** — covers the top-right diagonal `DEBUG` ribbon.
+- **Fill** — `auto` samples the pixel just below the status bar to extend a solid
+  background/header up over the band (seamless), or set a specific `#RRGGBB`.
+
+It's on by default and applies at render time, so you can dial in the band height
+in the live preview (or switch the toggles off if your shots are already clean).
+Heights are fractions of the source image, so they scale across targets.
+
 ## Quick start (CLI)
 
 ```sh
