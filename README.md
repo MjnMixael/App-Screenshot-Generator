@@ -25,6 +25,22 @@ Or from Visual Studio, set **ScreenGen.App** as the startup project and press F5
 (its launch profile runs from the repo root so the default config + sample shots
 load automatically). **Generate** writes the same store-compliant files as the CLI.
 
+### Capture from an Android device (adb)
+
+Click **Connect device** in the toolbar to grab screenshots straight from a phone
+over USB — no manual file copying:
+
+1. Enable **USB debugging** on the phone and plug it in (authorize the prompt).
+2. Click **Connect device**. The dot turns green and shows e.g. "Pixel 7 connected".
+3. Navigate to the screen you want on the phone, then capture it (pulled via
+   `adb exec-out screencap -p`, saved under `captures/`):
+   - **Capture New** adds it as a new screen (ready for a caption). Repeat per screen.
+   - **Replace Current** overwrites the selected screen's image (re-shoot a screen
+     without losing its caption).
+
+Requires Android **platform-tools** (`adb`); it's auto-located on your PATH, via
+`ANDROID_HOME`/`ANDROID_SDK_ROOT`, or in `%LOCALAPPDATA%\Android\Sdk`.
+
 ## Quick start (CLI)
 
 ```sh

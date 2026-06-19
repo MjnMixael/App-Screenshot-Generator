@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using SkiaSharp;
 
@@ -12,6 +13,11 @@ public sealed class MainViewModel : ObservableObject
 {
     private readonly Renderer _renderer = new();
     private bool _suspend;
+
+    private readonly DispatcherTimer _deviceTimer;
+    private string? _adbPath;
+    private AdbDevice? _device;
+    private bool _monitoring;
 
     private string _configDir = Directory.GetCurrentDirectory();
     private int _titleWeight = 600;
@@ -35,6 +41,13 @@ public sealed class MainViewModel : ObservableObject
         PickColorCommand = new RelayCommand<string>(PickColor);
         BrowseTitleFontCommand = new RelayCommand(() => BrowseFont(f => TitleFont = f));
         BrowseSubtitleFontCommand = new RelayCommand(() => BrowseFont(f => SubtitleFont = f));
+        ConnectDeviceCommand = new RelayCommand(ToggleDeviceMonitoring);
+        CaptureCommand = new RelayCommand(() => _ = CaptureAsync(replace: false), () => DeviceConnected);
+        CaptureReplaceCommand = new RelayCommand(() => _ = CaptureAsync(replace: true),
+            () => DeviceConnected && SelectedScreen is not null);
+
+        _deviceTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
+        _deviceTimer.Tick += (_, _) => _ = RefreshDevicesAsync();
 
         var def = AppEnv.FindUp("screenshots.yaml");
         if (def is not null) TryLoad(def);
@@ -144,6 +157,25 @@ public sealed class MainViewModel : ObservableObject
     private string _status = "Ready.";
     public string Status { get => _status; set => Set(ref _status, value); }
 
+    // --- device (adb) ---
+    private bool _deviceConnected;
+    public bool DeviceConnected
+    {
+        get => _deviceConnected;
+        private set
+        {
+            if (Set(ref _deviceConnected, value))
+            {
+                CaptureCommand.RaiseCanExecuteChanged();
+                CaptureReplaceCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+    private string _deviceStatus = "Device not connected";
+    public string DeviceStatus { get => _deviceStatus; private set => Set(ref _deviceStatus, value); }
+    private string _connectLabel = "Connect device";
+    public string ConnectLabel { get => _connectLabel; private set => Set(ref _connectLabel, value); }
+
     // --- commands ---
     public RelayCommand AddScreenCommand { get; }
     public RelayCommand RemoveScreenCommand { get; }
@@ -157,6 +189,9 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand<string> PickColorCommand { get; }
     public RelayCommand BrowseTitleFontCommand { get; }
     public RelayCommand BrowseSubtitleFontCommand { get; }
+    public RelayCommand ConnectDeviceCommand { get; }
+    public RelayCommand CaptureCommand { get; }
+    public RelayCommand CaptureReplaceCommand { get; }
 
     // ------------------------------------------------------------------ build
 
@@ -445,6 +480,108 @@ public sealed class MainViewModel : ObservableObject
             SelectedScreen.Image = dlg.FileName;
     }
 
+    // --------------------------------------------------------------- device
+
+    private void ToggleDeviceMonitoring()
+    {
+        if (_monitoring) { StopMonitoring(); return; }
+
+        _adbPath = AdbService.FindAdb();
+        if (_adbPath is null)
+        {
+            MessageBox.Show(
+                "Couldn't find adb. Install Android platform-tools and ensure adb is on your PATH " +
+                "(or set ANDROID_HOME). Then enable USB debugging on your phone and reconnect.",
+                "adb not found", MessageBoxButton.OK, MessageBoxImage.Information);
+            DeviceStatus = "adb not found";
+            return;
+        }
+
+        _monitoring = true;
+        ConnectLabel = "Disconnect";
+        DeviceStatus = "Looking for device…";
+        _deviceTimer.Start();
+        _ = RefreshDevicesAsync();
+    }
+
+    private void StopMonitoring()
+    {
+        _deviceTimer.Stop();
+        _monitoring = false;
+        _device = null;
+        DeviceConnected = false;
+        ConnectLabel = "Connect device";
+        DeviceStatus = "Device not connected";
+    }
+
+    private async Task RefreshDevicesAsync()
+    {
+        if (_adbPath is null) return;
+        try
+        {
+            var devices = await AdbService.ListDevicesAsync(_adbPath);
+            var ready = devices.FirstOrDefault(d => d.IsReady);
+            if (ready is not null)
+            {
+                _device = ready;
+                DeviceConnected = true;
+                DeviceStatus = $"{ready.Model} connected";
+            }
+            else
+            {
+                _device = null;
+                DeviceConnected = false;
+                DeviceStatus = devices.Any(d => d.State == "unauthorized")
+                    ? "Unauthorized — allow USB debugging on phone"
+                    : "No device detected";
+            }
+        }
+        catch (Exception ex)
+        {
+            _device = null;
+            DeviceConnected = false;
+            DeviceStatus = "adb error: " + ex.Message;
+        }
+    }
+
+    private async Task CaptureAsync(bool replace)
+    {
+        if (_adbPath is null || _device is null) return;
+        var target = replace ? SelectedScreen : null;
+        if (replace && target is null) return;
+        try
+        {
+            DeviceStatus = "Capturing…";
+            var bytes = await AdbService.CaptureAsync(_adbPath, _device.Serial);
+
+            var dir = Path.Combine(_configDir, "captures");
+            Directory.CreateDirectory(dir);
+            var file = Path.Combine(dir, $"capture-{DateTime.Now:yyyyMMdd-HHmmss}.png");
+            await File.WriteAllBytesAsync(file, bytes);
+
+            if (replace)
+            {
+                target!.Image = file;          // raises change -> preview refresh
+                Status = $"Replaced \"{target.Display}\" with {Path.GetFileName(file)} ({bytes.Length / 1024} KB)";
+            }
+            else
+            {
+                var item = new ScreenItem { Image = file, Title = "" };
+                AddScreenItem(item);
+                SelectedScreen = item;
+                Edited();
+                Status = $"Captured {Path.GetFileName(file)} ({bytes.Length / 1024} KB)";
+            }
+
+            DeviceStatus = $"{_device.Model} connected";
+        }
+        catch (Exception ex)
+        {
+            DeviceStatus = $"{_device?.Model} connected";
+            MessageBox.Show(ex.Message, "Capture failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
     private void BrowseFont(Action<string> set)
     {
         var dlg = new OpenFileDialog { Filter = "Fonts (*.ttf;*.otf)|*.ttf;*.otf|All files|*.*" };
@@ -488,5 +625,6 @@ public sealed class MainViewModel : ObservableObject
         MoveUpCommand.RaiseCanExecuteChanged();
         MoveDownCommand.RaiseCanExecuteChanged();
         BrowseImageCommand.RaiseCanExecuteChanged();
+        CaptureReplaceCommand.RaiseCanExecuteChanged();
     }
 }

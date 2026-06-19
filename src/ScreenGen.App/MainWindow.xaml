@@ -9,6 +9,7 @@
 
     <Window.Resources>
         <local:HexToBrushConverter x:Key="HexBrush"/>
+        <local:BoolToBrushConverter x:Key="BoolBrush"/>
 
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="#FFD6D6D6"/>
@@ -62,14 +63,31 @@
     <DockPanel>
         <!-- Toolbar -->
         <Border DockPanel.Dock="Top" Background="#FF202024" Padding="8">
-            <StackPanel Orientation="Horizontal">
-                <Button Content="Load YAML…" Command="{Binding LoadCommand}"/>
-                <Button Content="Save YAML…" Command="{Binding SaveCommand}"/>
-                <Separator Margin="6,0" Background="#FF45454B"/>
-                <Button Content="Generate" Command="{Binding GenerateCommand}"
-                        Background="#FF2D6CDF" FontWeight="SemiBold"/>
-                <Button Content="Open Output" Command="{Binding OpenOutputCommand}"/>
-            </StackPanel>
+            <DockPanel>
+                <!-- Device (adb) group, docked right -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Ellipse Width="11" Height="11" VerticalAlignment="Center" Margin="0,0,6,0"
+                             Fill="{Binding DeviceConnected, Converter={StaticResource BoolBrush}}"/>
+                    <TextBlock Text="{Binding DeviceStatus}" VerticalAlignment="Center" Margin="0,0,8,0"
+                               Foreground="#FFC9C9CC" MinWidth="160"/>
+                    <Button Content="{Binding ConnectLabel}" Command="{Binding ConnectDeviceCommand}"/>
+                    <Button Content="Capture New" Command="{Binding CaptureCommand}"
+                            Background="#FF2E9E5B" FontWeight="SemiBold"
+                            ToolTip="Capture the phone screen and add it as a new screen"/>
+                    <Button Content="Replace Current" Command="{Binding CaptureReplaceCommand}"
+                            Background="#FF2E7D8C" FontWeight="SemiBold" Margin="0"
+                            ToolTip="Capture the phone screen and replace the selected screen's image"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Load YAML…" Command="{Binding LoadCommand}"/>
+                    <Button Content="Save YAML…" Command="{Binding SaveCommand}"/>
+                    <Separator Margin="6,0" Background="#FF45454B"/>
+                    <Button Content="Generate" Command="{Binding GenerateCommand}"
+                            Background="#FF2D6CDF" FontWeight="SemiBold"/>
+                    <Button Content="Open Output" Command="{Binding OpenOutputCommand}"/>
+                </StackPanel>
+            </DockPanel>
         </Border>
 
         <!-- Status bar -->

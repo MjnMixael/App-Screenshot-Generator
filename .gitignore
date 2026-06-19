@@ -1,6 +1,8 @@
 ### screengen
 # Generated screenshots
 out/
+# Device captures pulled over adb
+captures/
 
 ### C#
 # Build results
