@@ -1,4 +1,4 @@
-# screengen — App Store / Google Play screenshot generator
+# App Store / Google Play screenshot generator
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/mjnmixael)
@@ -12,7 +12,7 @@ in a **stylized device frame** offset downward so it bleeds off the bottom edge.
 No accounts, no SaaS. C# / .NET 9 + [SkiaSharp](https://github.com/mono/SkiaSharp).
 
 > ☕ **Free and open source.** If screengen saves you time, consider
-> [buying me a coffee](https://buymeacoffee.com/mjnmixael) — appreciated, never required.
+> [buying me a coffee](https://buymeacoffee.com/mjnmixael)
 
 ![example](compare/apple_6_9_example_01.png)
 
@@ -20,7 +20,7 @@ No accounts, no SaaS. C# / .NET 9 + [SkiaSharp](https://github.com/mono/SkiaShar
 
 A WPF editor (`src/ScreenGen.App`) wraps the same rendering core with a **live
 preview**: browse for screenshots, edit captions, tweak every style/layout knob
-with sliders, pick which targets to generate, and Load/Save the YAML — the preview
+with sliders, pick which targets to generate, and Load/Save the YAML. The preview
 pane re-renders as you type.
 
 ```sh
@@ -34,7 +34,7 @@ load automatically). **Generate** writes the same store-compliant files as the C
 ### Capture from an Android device (adb)
 
 Click **Connect device** in the toolbar to grab screenshots straight from a phone
-over USB — no manual file copying:
+over USB:
 
 1. Enable **USB debugging** on the phone and plug it in (authorize the prompt).
 2. Click **Connect device**. The dot turns green and shows e.g. "Pixel 7 connected".
@@ -52,9 +52,9 @@ Requires Android **platform-tools** (`adb`); it's auto-located on your PATH, via
 Apple rejects screenshots that reveal another platform. The **DEVICE CHROME**
 section (config `cleanup:`) paints over the giveaways on the source shot:
 
-- **Hide status bar** — fills a top band over the clock/battery/signal icons.
-- **Hide Flutter debug banner** — covers the top-right diagonal `DEBUG` ribbon.
-- **Fill** — `auto` samples the pixel just below the status bar to extend a solid
+- **Hide status bar** - fills a top band over the clock/battery/signal icons.
+- **Hide Flutter debug banner** - covers the top-right diagonal `DEBUG` ribbon.
+- **Fill** - `auto` samples the pixel just below the status bar to extend a solid
   background/header up over the band (seamless), or set a specific `#RRGGBB`.
 
 It's on by default and applies at render time, so you can dial in the band height
@@ -73,7 +73,7 @@ Output is written under `out/`, mirroring the store folder tree
 (`apple/iOS Phones  6.9/01.png`, `android/Android Phones  169/01.png`, …). The
 un-framed source shots are also saved to `out/originals/` (`NN.png`) with the same
 device-chrome cleanup applied (status bar / debug banner removed), so you get clean
-plain screenshots too — toggle with `output.save_originals` / `output.originals_dir`.
+plain screenshots too. Toggle with `output.save_originals` / `output.originals_dir`.
 (When cleanup is off, the raw file is copied byte-for-byte.)
 
 ### Visual Studio
@@ -95,7 +95,7 @@ screengen --validate-targets [--config <f>] [--targets <f>]
   --targets <path>     target matrix seed YAML (default: beside config, else bundled)
   --only apple|android render only one store's targets
   --device <name>      render specific target(s); repeatable
-  --screen 1,5         render only these source screens (1-based) — fast caption iteration
+  --screen 1,5         render only these source screens (1-based) - fast caption iteration
   --output <dir>       override output.dir
   --dry-run            print the resolved plan (target×screen, sizes, device rect, paths); write nothing
   --list-targets       print the resolved device matrix
@@ -113,22 +113,22 @@ A single YAML file per app. Relative paths (fonts, screens, output) resolve
 against the **config file's** directory. See [`screenshots.yaml`](screenshots.yaml)
 for the fully-commented reference. Key sections:
 
-- `style.background` — `gradient` (center/edge vignette) or `flat` (single color).
-- `style.title` / `style.layout` — every position/size is a fraction of canvas
+- `style.background` - `gradient` (center/edge vignette) or `flat` (single color).
+- `style.title` / `style.layout` - every position/size is a fraction of canvas
   W/H, so one config drives every resolution. `device_width_pct` scales the whole
   device: small enough fits fully inside the frame, larger bleeds off the bottom.
-- `style.frame` — `stylized` (drawn bezel) or `none` (bare rounded screenshot).
+- `style.frame` - `stylized` (drawn bezel) or `none` (bare rounded screenshot).
   `realistic` is stubbed for the future. The camera cutout (`island`) defaults to
-  **`none`** — see the compliance note below.
-- `screens` — ordered list of `{image, title, subtitle?}`; order → `01.png … 0N.png`.
-- `targets` — which device sizes to render (names from `targets.yaml`).
-- `target_defs` — optional inline overrides of any target field.
+  **`none`** - see the compliance note below.
+- `screens` - ordered list of `{image, title, subtitle?}`; order → `01.png … 0N.png`.
+- `targets` - which device sizes to render (names from `targets.yaml`).
+- `target_defs` - optional inline overrides of any target field.
 
 ### Device target matrix is data, not code
 
 The full size list lives in [`targets.yaml`](targets.yaml) (editable seed) and may
 be overridden per-project via `target_defs:`. When Apple/Google change their specs,
-edit YAML — no code change. `--validate-targets` checks every definition (positive
+edit YAML, no code change. `--validate-targets` checks every definition (positive
 even dimensions, Google aspect within 1:2..2:1, unique names, valid store/class).
 
 | target | size (W×H) | store | class |
@@ -165,16 +165,16 @@ the 6.5″/5.5″ entries are optional.
 
 The device frame takes the **target device's aspect ratio** (from its pixel
 dimensions), so an iPad target stays iPad-shaped and a phone stays phone-shaped at
-any size. The screenshot fills the frame via **cover** — scaled up uniformly,
+any size. The screenshot fills the frame via **cover**, scaled up uniformly,
 keeping its own aspect (no distortion, no side bars), pinned to the **top** so only
 the bottom overflows and is cropped (the app header stays visible). Note a tall
-phone shot in a wide tablet frame loses its bottom — supply tablet-aspect
+phone shot in a wide tablet frame loses its bottom. Supply tablet-aspect
 screenshots for tablet targets, or set a per-target `screen_fit: contain` to
 letterbox instead.
 
 The device sits below the title block and bleeds off the bottom.
-`device_width_pct` scales the whole device — shrink it to make the device fit fully
-inside the frame, enlarge it to bleed off the bottom — and
+`device_width_pct` scales the whole device. Shrink it to make the device fit fully
+inside the frame, enlarge it to bleed off the bottom and
 `title_to_device_gap_pct` sets how far below the title it starts.
 
 ## Notes
