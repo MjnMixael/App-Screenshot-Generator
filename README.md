@@ -204,3 +204,10 @@ dotnet test
 
 Asserts exact dimensions, no-alpha, Google aspect, and file size on rendered
 output, plus target-validator behavior.
+
+## License
+
+Released under the [MIT License](LICENSE).
+
+The bundled Inter font (`assets/fonts/`) is licensed separately under the
+[SIL Open Font License 1.1](assets/fonts/OFL.txt).
