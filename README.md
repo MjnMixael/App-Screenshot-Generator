@@ -24,6 +24,8 @@ captions, tweak every style/layout knob with sliders, pick which targets to gene
 and Load/Save the YAML. The preview pane re-renders as you type. It runs on Windows,
 macOS, and Linux.
 
+![The ScreenGen desktop editor](docs/app.png)
+
 ```sh
 dotnet run --project src/ScreenGen.App
 ```
