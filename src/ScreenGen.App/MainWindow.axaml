@@ -145,9 +145,10 @@
             </DockPanel>
 
             <!-- RIGHT: style + targets -->
-            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
-                <StackPanel>
-                    <TextBlock Text="PROJECT" Classes="section" Margin="0,0,0,4"/>
+            <Border Grid.Column="2" Background="#222226" BorderBrush="#3A3A40" BorderThickness="1" CornerRadius="4">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="10,2,12,10">
+                    <StackPanel>
+                        <TextBlock Text="PROJECT" Classes="section" Margin="0,0,0,4"/>
                     <TextBox Text="{Binding Project}"/>
 
                     <TextBlock Text="BACKGROUND" Classes="section"/>
@@ -248,8 +249,9 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                </StackPanel>
-            </ScrollViewer>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
         </Grid>
     </DockPanel>
 </Window>

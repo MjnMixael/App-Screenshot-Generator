@@ -5,6 +5,9 @@
 
     <Application.Styles>
         <FluentTheme />
+        <!-- ColorPicker / ColorView control themes aren't pulled in by FluentTheme
+             automatically; include them so the colour swatches render. -->
+        <StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml"/>
     </Application.Styles>
 
 </Application>
