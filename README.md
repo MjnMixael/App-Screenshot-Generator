@@ -1,5 +1,8 @@
 # screengen — App Store / Google Play screenshot generator
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/mjnmixael)
+
 Self-hosted CLI that turns ~5 raw app screenshots + caption text into
 store-compliant marketing screenshots for every required Apple and Google device
 size, in a consistent house style: dark charcoal **vignette** background, large
@@ -7,6 +10,9 @@ uppercase white title (+ optional subtitle) near the top, and the app screenshot
 in a **stylized device frame** offset downward so it bleeds off the bottom edge.
 
 No accounts, no SaaS. C# / .NET 9 + [SkiaSharp](https://github.com/mono/SkiaSharp).
+
+> ☕ **Free and open source.** If screengen saves you time, consider
+> [buying me a coffee](https://buymeacoffee.com/mjnmixael) — appreciated, never required.
 
 ![example](compare/apple_6_9_example_01.png)
 
@@ -204,6 +210,12 @@ dotnet test
 
 Asserts exact dimensions, no-alpha, Google aspect, and file size on rendered
 output, plus target-validator behavior.
+
+## Support
+
+screengen is free and open source. If it saves you time, you can say thanks:
+
+<a href="https://buymeacoffee.com/mjnmixael"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="48"></a>
 
 ## License
 

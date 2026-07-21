@@ -38,6 +38,7 @@ public sealed class MainViewModel : ObservableObject
         SaveCommand = new RelayCommand(SaveYaml);
         GenerateCommand = new RelayCommand(Generate);
         OpenOutputCommand = new RelayCommand(OpenOutput);
+        SupportCommand = new RelayCommand(OpenSupport);
         PickColorCommand = new RelayCommand<string>(PickColor);
         BrowseTitleFontCommand = new RelayCommand(() => BrowseFont(f => TitleFont = f));
         BrowseSubtitleFontCommand = new RelayCommand(() => BrowseFont(f => SubtitleFont = f));
@@ -200,6 +201,7 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand SaveCommand { get; }
     public RelayCommand GenerateCommand { get; }
     public RelayCommand OpenOutputCommand { get; }
+    public RelayCommand SupportCommand { get; }
     public RelayCommand<string> PickColorCommand { get; }
     public RelayCommand BrowseTitleFontCommand { get; }
     public RelayCommand BrowseSubtitleFontCommand { get; }
@@ -455,6 +457,12 @@ public sealed class MainViewModel : ObservableObject
 
     private static void OpenFolder(string path) =>
         Process.Start(new ProcessStartInfo("explorer.exe", $"\"{path}\"") { UseShellExecute = true });
+
+    // screengen is free and open source; this opens the author's Buy Me a Coffee page.
+    private const string SupportUrl = "https://buymeacoffee.com/mjnmixael";
+
+    private static void OpenSupport() =>
+        Process.Start(new ProcessStartInfo(SupportUrl) { UseShellExecute = true });
 
     // ----------------------------------------------------------- screen edits
 

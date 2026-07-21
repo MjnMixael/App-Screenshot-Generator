@@ -86,6 +86,10 @@
                     <Button Content="Generate" Command="{Binding GenerateCommand}"
                             Background="#FF2D6CDF" FontWeight="SemiBold"/>
                     <Button Content="Open Output" Command="{Binding OpenOutputCommand}"/>
+                    <Separator Margin="6,0" Background="#FF45454B"/>
+                    <Button Content="☕ Support this project" Command="{Binding SupportCommand}"
+                            Background="#FFFFDD00" Foreground="#FF111111" FontWeight="SemiBold" Margin="0"
+                            ToolTip="screengen is free &amp; open source — support it on Buy Me a Coffee"/>
                 </StackPanel>
             </DockPanel>
         </Border>
