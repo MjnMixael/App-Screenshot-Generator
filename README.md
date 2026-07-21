@@ -14,8 +14,6 @@ No accounts, no SaaS. C# / .NET 9 + [SkiaSharp](https://github.com/mono/SkiaShar
 > ☕ **Free and open source.** If screengen saves you time, consider
 > [buying me a coffee](https://buymeacoffee.com/mjnmixael)
 
-![example](compare/apple_6_9_example_01.png)
-
 ## Desktop app (GUI)
 
 A cross-platform [Avalonia](https://avaloniaui.net) editor (`src/ScreenGen.App`)
