@@ -2,9 +2,15 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Windows;
-using System.Windows.Threading;
-using Microsoft.Win32;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
+using Avalonia.Platform.Storage;
+using Avalonia.Threading;
+using MsBox.Avalonia;
+using MsBox.Avalonia.Enums;
 using SkiaSharp;
 
 namespace ScreenGen.App;
@@ -25,7 +31,10 @@ public sealed class MainViewModel : ObservableObject
     private Dictionary<string, TargetDto>? _loadedDefs;
     private IReadOnlyDictionary<string, Target> _catalog = new Dictionary<string, Target>();
 
-    public event Action? PreviewInvalidated;
+    /// <summary>Set by the view once the window exists; needed for file pickers
+    /// and message dialogs, which are owner-relative in Avalonia.</summary>
+    public Window? Owner { get; set; }
+    private IStorageProvider? Storage => Owner?.StorageProvider;
 
     public MainViewModel()
     {
@@ -33,16 +42,15 @@ public sealed class MainViewModel : ObservableObject
         RemoveScreenCommand = new RelayCommand(RemoveScreen, () => SelectedScreen is not null);
         MoveUpCommand = new RelayCommand(() => MoveScreen(-1), () => SelectedScreen is not null);
         MoveDownCommand = new RelayCommand(() => MoveScreen(+1), () => SelectedScreen is not null);
-        BrowseImageCommand = new RelayCommand(BrowseImage, () => SelectedScreen is not null);
-        LoadCommand = new RelayCommand(LoadYaml);
-        SaveCommand = new RelayCommand(SaveYaml);
-        GenerateCommand = new RelayCommand(Generate);
-        OpenOutputCommand = new RelayCommand(OpenOutput);
+        BrowseImageCommand = new RelayCommand(() => _ = BrowseImageAsync(), () => SelectedScreen is not null);
+        LoadCommand = new RelayCommand(() => _ = LoadYamlAsync());
+        SaveCommand = new RelayCommand(() => _ = SaveYamlAsync());
+        GenerateCommand = new RelayCommand(() => _ = GenerateAsync());
+        OpenOutputCommand = new RelayCommand(() => _ = OpenOutputAsync());
         SupportCommand = new RelayCommand(OpenSupport);
-        PickColorCommand = new RelayCommand<string>(PickColor);
-        BrowseTitleFontCommand = new RelayCommand(() => BrowseFont(f => TitleFont = f));
-        BrowseSubtitleFontCommand = new RelayCommand(() => BrowseFont(f => SubtitleFont = f));
-        ConnectDeviceCommand = new RelayCommand(ToggleDeviceMonitoring);
+        BrowseTitleFontCommand = new RelayCommand(() => _ = BrowseFontAsync(f => TitleFont = f));
+        BrowseSubtitleFontCommand = new RelayCommand(() => _ = BrowseFontAsync(f => SubtitleFont = f));
+        ConnectDeviceCommand = new RelayCommand(() => _ = ToggleDeviceMonitoringAsync());
         CaptureCommand = new RelayCommand(() => _ = CaptureAsync(replace: false), () => DeviceConnected);
         CaptureReplaceCommand = new RelayCommand(() => _ = CaptureAsync(replace: true),
             () => DeviceConnected && SelectedScreen is not null);
@@ -61,8 +69,8 @@ public sealed class MainViewModel : ObservableObject
     public string[] Islands { get; } = { "none", "dynamic", "notch" };
     public string[] Formats { get; } = { "png", "jpeg" };
     public string[] FontFamilies { get; } =
-        System.Windows.Media.Fonts.SystemFontFamilies
-            .Select(f => f.Source).Distinct().OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToArray();
+        FontManager.Current.SystemFonts
+            .Select(f => f.Name).Distinct().OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToArray();
 
     // --- general ---
     private string _project = "App";
@@ -166,7 +174,25 @@ public sealed class MainViewModel : ObservableObject
     public string? PreviewTarget { get => _previewTarget; set { if (Set(ref _previewTarget, value)) Edited(); } }
 
     // --- preview / status ---
-    public SKImage? PreviewImage { get; private set; }
+    // The core renders to an SKImage (SKColorType.Rgb888x). That format samples
+    // as black through Avalonia's GPU texture path, so we copy the pixels into a
+    // standard Bgra8888 bitmap that a stock Image control can display anywhere.
+    private Bitmap? _previewBitmap;
+    public Bitmap? PreviewBitmap
+    {
+        get => _previewBitmap;
+        private set { var old = _previewBitmap; if (Set(ref _previewBitmap, value)) old?.Dispose(); }
+    }
+
+    private static WriteableBitmap ToBitmap(SKImage img)
+    {
+        var wb = new WriteableBitmap(new PixelSize(img.Width, img.Height), new Vector(96, 96),
+            PixelFormat.Bgra8888, AlphaFormat.Premul);
+        using var fb = wb.Lock();
+        var info = new SKImageInfo(img.Width, img.Height, SKColorType.Bgra8888, SKAlphaType.Premul);
+        img.ReadPixels(info, fb.Address, fb.RowBytes);
+        return wb;
+    }
     private string _previewInfo = "";
     public string PreviewInfo { get => _previewInfo; private set => Set(ref _previewInfo, value); }
     private string _status = "Ready.";
@@ -202,7 +228,6 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand GenerateCommand { get; }
     public RelayCommand OpenOutputCommand { get; }
     public RelayCommand SupportCommand { get; }
-    public RelayCommand<string> PickColorCommand { get; }
     public RelayCommand BrowseTitleFontCommand { get; }
     public RelayCommand BrowseSubtitleFontCommand { get; }
     public RelayCommand ConnectDeviceCommand { get; }
@@ -267,15 +292,14 @@ public sealed class MainViewModel : ObservableObject
         {
             var cfg = BuildConfig();
             var target = ResolvePreviewTarget(cfg);
-            if (target is null) { PreviewInfo = "no targets available"; PreviewInvalidated?.Invoke(); return; }
+            if (target is null) { PreviewInfo = "no targets available"; return; }
 
             var screen = SelectedScreen?.ToSpec() ?? new ScreenSpec { Title = Project };
             int idx = SelectedScreen is not null ? Screens.IndexOf(SelectedScreen) + 1 : 1;
             var item = _renderer.BuildPlan(cfg, target, screen, idx, cfg.ResolvePath(OutputDir));
 
-            var img = _renderer.RenderToImage(cfg, item);
-            PreviewImage?.Dispose();
-            PreviewImage = img;
+            using (var img = _renderer.RenderToImage(cfg, item))
+                PreviewBitmap = ToBitmap(img);
             PreviewInfo = $"{target.Name}   {target.Width}×{target.Height}" +
                           (item.Layout.TextDeviceOverlap ? "    ⚠ text/device overlap" : "");
         }
@@ -283,7 +307,6 @@ public sealed class MainViewModel : ObservableObject
         {
             PreviewInfo = "preview error: " + ex.Message;
         }
-        PreviewInvalidated?.Invoke();
     }
 
     private Target? ResolvePreviewTarget(Config cfg)
@@ -296,10 +319,21 @@ public sealed class MainViewModel : ObservableObject
 
     // ------------------------------------------------------------ load / save
 
-    private void LoadYaml()
+    private async Task LoadYamlAsync()
     {
-        var dlg = new OpenFileDialog { Filter = "YAML config (*.yaml;*.yml)|*.yaml;*.yml|All files|*.*" };
-        if (dlg.ShowDialog() == true) TryLoad(dlg.FileName);
+        if (Storage is null) return;
+        var files = await Storage.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Load YAML config",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("YAML config") { Patterns = new[] { "*.yaml", "*.yml" } },
+                FilePickerFileTypes.All,
+            },
+        });
+        var path = files.Count > 0 ? files[0].TryGetLocalPath() : null;
+        if (path is not null) TryLoad(path);
     }
 
     private void TryLoad(string path)
@@ -312,7 +346,7 @@ public sealed class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, "Load failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+            _ = ShowWarning(ex.Message, "Load failed");
         }
     }
 
@@ -368,7 +402,7 @@ public sealed class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            MessageBox.Show("Targets failed to load: " + ex.Message, "Targets", MessageBoxButton.OK, MessageBoxImage.Warning);
+            _ = ShowWarning("Targets failed to load: " + ex.Message, "Targets");
             _catalog = new Dictionary<string, Target>();
         }
 
@@ -388,35 +422,39 @@ public sealed class MainViewModel : ObservableObject
         PreviewTarget = selectedNames.FirstOrDefault(n => _catalog.ContainsKey(n)) ?? TargetNames.FirstOrDefault();
     }
 
-    private void SaveYaml()
+    private async Task SaveYamlAsync()
     {
-        var dlg = new SaveFileDialog
+        if (Storage is null) return;
+        var file = await Storage.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Filter = "YAML config (*.yaml)|*.yaml",
-            FileName = "screenshots.yaml",
-            InitialDirectory = _configDir,
-        };
-        if (dlg.ShowDialog() != true) return;
+            Title = "Save YAML config",
+            SuggestedFileName = "screenshots.yaml",
+            DefaultExtension = "yaml",
+            SuggestedStartLocation = await FolderFor(_configDir),
+            FileTypeChoices = new[] { new FilePickerFileType("YAML config") { Patterns = new[] { "*.yaml" } } },
+        });
+        var path = file?.TryGetLocalPath();
+        if (path is null) return;
         try
         {
-            ConfigLoader.Save(BuildConfig(), dlg.FileName);
-            Status = $"Saved {Path.GetFileName(dlg.FileName)}";
+            ConfigLoader.Save(BuildConfig(), path);
+            Status = $"Saved {Path.GetFileName(path)}";
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, "Save failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+            await ShowWarning(ex.Message, "Save failed");
         }
     }
 
     // --------------------------------------------------------------- generate
 
-    private void Generate()
+    private async Task GenerateAsync()
     {
         var cfg = BuildConfig();
-        if (cfg.Screens.Count == 0) { MessageBox.Show("Add at least one screen.", "Generate"); return; }
+        if (cfg.Screens.Count == 0) { await ShowInfo("Add at least one screen.", "Generate"); return; }
 
         var selected = Targets.Where(t => t.IsSelected).Select(t => _catalog[t.Name]).ToList();
-        if (selected.Count == 0) { MessageBox.Show("Select at least one target.", "Generate"); return; }
+        if (selected.Count == 0) { await ShowInfo("Select at least one target.", "Generate"); return; }
 
         string outDir = cfg.ResolvePath(OutputDir);
         var errors = new List<string>();
@@ -440,29 +478,42 @@ public sealed class MainViewModel : ObservableObject
                + (originals > 0 ? $" (+{originals} originals)" : "")
                + (errors.Count > 0 ? $"  ({errors.Count} skipped)" : "");
         if (errors.Count > 0)
-            MessageBox.Show(string.Join("\n", errors.Take(20)), "Some images were skipped",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            await ShowWarning(string.Join("\n", errors.Take(20)), "Some images were skipped");
         else if (Directory.Exists(outDir) &&
-                 MessageBox.Show($"Done — {ok} image(s).\nOpen the output folder?", "Generate",
-                     MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
+                 await ShowQuestion($"Done — {ok} image(s).\nOpen the output folder?", "Generate") == ButtonResult.Yes)
             OpenFolder(outDir);
     }
 
-    private void OpenOutput()
+    private async Task OpenOutputAsync()
     {
         var outDir = BuildConfig().ResolvePath(OutputDir);
         if (Directory.Exists(outDir)) OpenFolder(outDir);
-        else MessageBox.Show("Output folder doesn't exist yet — generate first.", "Open output");
+        else await ShowInfo("Output folder doesn't exist yet — generate first.", "Open output");
     }
 
-    private static void OpenFolder(string path) =>
-        Process.Start(new ProcessStartInfo("explorer.exe", $"\"{path}\"") { UseShellExecute = true });
+    private static void OpenFolder(string path)
+    {
+        try
+        {
+            var psi = OperatingSystem.IsWindows() ? new ProcessStartInfo("explorer.exe", $"\"{path}\"")
+                    : OperatingSystem.IsMacOS() ? new ProcessStartInfo("open", $"\"{path}\"")
+                    : new ProcessStartInfo("xdg-open", path);
+            psi.UseShellExecute = true;
+            Process.Start(psi);
+        }
+        catch { /* opening a file browser is best-effort */ }
+    }
 
     // screengen is free and open source; this opens the author's Buy Me a Coffee page.
     private const string SupportUrl = "https://buymeacoffee.com/mjnmixael";
 
-    private static void OpenSupport() =>
-        Process.Start(new ProcessStartInfo(SupportUrl) { UseShellExecute = true });
+    private static void OpenSupport()
+    {
+        // UseShellExecute routes the URL to the default browser on Windows, macOS,
+        // and Linux (xdg-open) alike.
+        try { Process.Start(new ProcessStartInfo(SupportUrl) { UseShellExecute = true }); }
+        catch { /* best-effort */ }
+    }
 
     // ----------------------------------------------------------- screen edits
 
@@ -506,31 +557,37 @@ public sealed class MainViewModel : ObservableObject
         Edited();
     }
 
-    private void BrowseImage()
+    private async Task BrowseImageAsync()
     {
-        if (SelectedScreen is null) return;
-        var dlg = new OpenFileDialog
+        if (SelectedScreen is null || Storage is null) return;
+        var files = await Storage.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Filter = "Images (*.png;*.jpg;*.jpeg)|*.png;*.jpg;*.jpeg|All files|*.*",
-            InitialDirectory = Directory.Exists(_configDir) ? _configDir : null,
-        };
-        if (dlg.ShowDialog() == true)
-            SelectedScreen.Image = dlg.FileName;
+            Title = "Choose screenshot image",
+            AllowMultiple = false,
+            SuggestedStartLocation = await FolderFor(_configDir),
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("Images") { Patterns = new[] { "*.png", "*.jpg", "*.jpeg" } },
+                FilePickerFileTypes.All,
+            },
+        });
+        var path = files.Count > 0 ? files[0].TryGetLocalPath() : null;
+        if (path is not null) SelectedScreen.Image = path;
     }
 
     // --------------------------------------------------------------- device
 
-    private void ToggleDeviceMonitoring()
+    private async Task ToggleDeviceMonitoringAsync()
     {
         if (_monitoring) { StopMonitoring(); return; }
 
         _adbPath = AdbService.FindAdb();
         if (_adbPath is null)
         {
-            MessageBox.Show(
+            await ShowInfo(
                 "Couldn't find adb. Install Android platform-tools and ensure adb is on your PATH " +
                 "(or set ANDROID_HOME). Then enable USB debugging on your phone and reconnect.",
-                "adb not found", MessageBoxButton.OK, MessageBoxImage.Information);
+                "adb not found");
             DeviceStatus = "adb not found";
             return;
         }
@@ -539,7 +596,7 @@ public sealed class MainViewModel : ObservableObject
         ConnectLabel = "Disconnect";
         DeviceStatus = "Looking for device…";
         _deviceTimer.Start();
-        _ = RefreshDevicesAsync();
+        await RefreshDevicesAsync();
     }
 
     private void StopMonitoring()
@@ -616,47 +673,25 @@ public sealed class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             DeviceStatus = $"{_device?.Model} connected";
-            MessageBox.Show(ex.Message, "Capture failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+            await ShowWarning(ex.Message, "Capture failed");
         }
     }
 
-    private void BrowseFont(Action<string> set)
+    private async Task BrowseFontAsync(Action<string> set)
     {
-        var dlg = new OpenFileDialog { Filter = "Fonts (*.ttf;*.otf)|*.ttf;*.otf|All files|*.*" };
-        if (dlg.ShowDialog() == true) set(dlg.FileName);
-    }
-
-    private void PickColor(string? key)
-    {
-        if (key is null) return;
-        var picked = ColorPickerService.Pick(GetColor(key));
-        if (picked is not null) SetColor(key, picked);
-    }
-
-    private string GetColor(string key) => key switch
-    {
-        nameof(BgCenter) => BgCenter,
-        nameof(BgEdge) => BgEdge,
-        nameof(BgFlat) => BgFlat,
-        nameof(TitleColor) => TitleColor,
-        nameof(SubtitleColor) => SubtitleColor,
-        nameof(BezelColor) => BezelColor,
-        nameof(CleanFill) => CleanFill,
-        _ => "#000000",
-    };
-
-    private void SetColor(string key, string value)
-    {
-        switch (key)
+        if (Storage is null) return;
+        var files = await Storage.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            case nameof(BgCenter): BgCenter = value; break;
-            case nameof(BgEdge): BgEdge = value; break;
-            case nameof(BgFlat): BgFlat = value; break;
-            case nameof(TitleColor): TitleColor = value; break;
-            case nameof(SubtitleColor): SubtitleColor = value; break;
-            case nameof(BezelColor): BezelColor = value; break;
-            case nameof(CleanFill): CleanFill = value; break;
-        }
+            Title = "Choose a font file",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("Fonts") { Patterns = new[] { "*.ttf", "*.otf" } },
+                FilePickerFileTypes.All,
+            },
+        });
+        var path = files.Count > 0 ? files[0].TryGetLocalPath() : null;
+        if (path is not null) set(path);
     }
 
     private void RaiseCommandStates()
@@ -666,5 +701,23 @@ public sealed class MainViewModel : ObservableObject
         MoveDownCommand.RaiseCanExecuteChanged();
         BrowseImageCommand.RaiseCanExecuteChanged();
         CaptureReplaceCommand.RaiseCanExecuteChanged();
+    }
+
+    // --------------------------------------------------------------- dialogs
+
+    private async Task<IStorageFolder?> FolderFor(string? dir) =>
+        Storage is not null && dir is not null && Directory.Exists(dir)
+            ? await Storage.TryGetFolderFromPathAsync(dir)
+            : null;
+
+    private Task ShowInfo(string text, string title) => Show(text, title, ButtonEnum.Ok, Icon.Info);
+    private Task ShowWarning(string text, string title) => Show(text, title, ButtonEnum.Ok, Icon.Warning);
+    private Task<ButtonResult> ShowQuestion(string text, string title) => Show(text, title, ButtonEnum.YesNo, Icon.Question);
+
+    private async Task<ButtonResult> Show(string text, string title, ButtonEnum buttons, Icon icon)
+    {
+        if (Owner is null) { Status = text; return ButtonResult.None; } // pre-window / headless fallback
+        var box = MessageBoxManager.GetMessageBoxStandard(title, text, buttons, icon);
+        return await box.ShowWindowDialogAsync(Owner);
     }
 }

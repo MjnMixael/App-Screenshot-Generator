@@ -18,7 +18,12 @@ internal static class AdbService
 {
     private static readonly byte[] PngSignature = { 137, 80, 78, 71, 13, 10, 26, 10 };
 
-    /// <summary>Locate an adb executable, or null if none is runnable.</summary>
+    // Executable name differs by OS; the SDK layout does not.
+    private static string AdbExe => OperatingSystem.IsWindows() ? "adb.exe" : "adb";
+
+    /// <summary>Locate an adb executable, or null if none is runnable. Searches
+    /// PATH, the ANDROID_HOME/ANDROID_SDK_ROOT env vars, and the default SDK
+    /// install location for the current OS.</summary>
     public static string? FindAdb()
     {
         var candidates = new List<string> { "adb" }; // PATH
@@ -27,10 +32,11 @@ internal static class AdbService
         {
             var root = Environment.GetEnvironmentVariable(env);
             if (!string.IsNullOrWhiteSpace(root))
-                candidates.Add(Path.Combine(root, "platform-tools", "adb.exe"));
+                candidates.Add(Path.Combine(root, "platform-tools", AdbExe));
         }
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        candidates.Add(Path.Combine(localAppData, "Android", "Sdk", "platform-tools", "adb.exe"));
+
+        foreach (var sdk in DefaultSdkRoots())
+            candidates.Add(Path.Combine(sdk, "platform-tools", AdbExe));
 
         foreach (var c in candidates)
         {
@@ -38,6 +44,26 @@ internal static class AdbService
             if (CanRun(c)) return c;
         }
         return null;
+    }
+
+    /// <summary>Per-OS default Android SDK locations.</summary>
+    private static IEnumerable<string> DefaultSdkRoots()
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (OperatingSystem.IsWindows())
+        {
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            yield return Path.Combine(localAppData, "Android", "Sdk");
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            yield return Path.Combine(home, "Library", "Android", "sdk");
+        }
+        else // Linux
+        {
+            yield return Path.Combine(home, "Android", "Sdk");
+            yield return Path.Combine(home, "Android", "sdk");
+        }
     }
 
     public static async Task<List<AdbDevice>> ListDevicesAsync(string adb)

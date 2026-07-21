@@ -18,18 +18,22 @@ No accounts, no SaaS. C# / .NET 9 + [SkiaSharp](https://github.com/mono/SkiaShar
 
 ## Desktop app (GUI)
 
-A WPF editor (`src/ScreenGen.App`) wraps the same rendering core with a **live
-preview**: browse for screenshots, edit captions, tweak every style/layout knob
-with sliders, pick which targets to generate, and Load/Save the YAML. The preview
-pane re-renders as you type.
+A cross-platform [Avalonia](https://avaloniaui.net) editor (`src/ScreenGen.App`)
+wraps the same rendering core with a **live preview**: browse for screenshots, edit
+captions, tweak every style/layout knob with sliders, pick which targets to generate,
+and Load/Save the YAML. The preview pane re-renders as you type. It runs on Windows,
+macOS, and Linux.
 
 ```sh
 dotnet run --project src/ScreenGen.App
 ```
 
-Or from Visual Studio, set **ScreenGen.App** as the startup project and press F5
+Or from Visual Studio / Rider, set **ScreenGen.App** as the startup project and run
 (its launch profile runs from the repo root so the default config + sample shots
 load automatically). **Generate** writes the same store-compliant files as the CLI.
+
+Prebuilt self-contained releases for Windows, macOS (x64 + Apple Silicon), and Linux
+are produced by the `Release` GitHub Actions workflow when a `v*` tag is pushed.
 
 ### Capture from an Android device (adb)
 
@@ -194,7 +198,7 @@ inside the frame, enlarge it to bleed off the bottom and
 
 ```
 src/ScreenGen/        Program.cs (CLI), Config, Targets, Layout, Renderer, Frames/
-src/ScreenGen.App/    WPF desktop editor (live preview) reusing the core
+src/ScreenGen.App/    Avalonia desktop editor (live preview) reusing the core
 targets.yaml          editable seed device matrix
 screenshots.yaml      example project config (generic Demo App)
 assets/fonts/         bundled Inter variable font

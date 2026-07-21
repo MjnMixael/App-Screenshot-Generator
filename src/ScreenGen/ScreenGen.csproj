@@ -21,12 +21,14 @@
   <!-- Bundle the seed target matrix and default font next to the exe so a
        published single-file build has working fallbacks even with no config dir. -->
   <ItemGroup>
-    <None Include="..\..\targets.yaml" Link="targets.yaml">
+    <Content Include="..\..\targets.yaml" Link="targets.yaml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="..\..\assets\fonts\**\*.ttf" Link="assets\fonts\%(Filename)%(Extension)">
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\assets\fonts\Inter-VariableFont_opsz,wght.ttf" Link="assets\fonts\Inter-VariableFont_opsz,wght.ttf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

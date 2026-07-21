@@ -1,0 +1,255 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:ScreenGen.App"
+        x:Class="ScreenGen.App.MainWindow"
+        x:DataType="local:MainViewModel"
+        Title="ScreenGen — Screenshot Generator" Width="1320" Height="860"
+        MinWidth="1024" MinHeight="640">
+
+    <Window.Resources>
+        <local:HexToColorConverter x:Key="HexColor"/>
+        <local:BoolToBrushConverter x:Key="BoolBrush"/>
+    </Window.Resources>
+
+    <Window.Styles>
+        <!-- Section headers in the right-hand inspector. -->
+        <Style Selector="TextBlock.section">
+            <Setter Property="Foreground" Value="#9AD0FF"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,14,0,4"/>
+        </Style>
+        <Style Selector="TextBlock.field">
+            <Setter Property="Opacity" Value="0.75"/>
+            <Setter Property="Margin" Value="0,6,0,2"/>
+        </Style>
+        <!-- Coloured action buttons. -->
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="#2D6CDF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="Button.go">
+            <Setter Property="Background" Value="#2E9E5B"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="Button.grab">
+            <Setter Property="Background" Value="#2E7D8C"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="Button.support">
+            <Setter Property="Background" Value="#FFDD00"/>
+            <Setter Property="Foreground" Value="#111111"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <!-- Compact colour swatch/dropdown. -->
+        <Style Selector="ColorPicker.swatch">
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Margin" Value="0,2,6,2"/>
+        </Style>
+    </Window.Styles>
+
+    <DockPanel LastChildFill="True">
+        <!-- Toolbar -->
+        <Border DockPanel.Dock="Top" Background="#202024" Padding="8">
+            <DockPanel>
+                <!-- Device (adb) group, docked right -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
+                    <Ellipse Width="11" Height="11" VerticalAlignment="Center"
+                             Fill="{Binding DeviceConnected, Converter={StaticResource BoolBrush}}"/>
+                    <TextBlock Text="{Binding DeviceStatus}" VerticalAlignment="Center"
+                               Opacity="0.8" MinWidth="160"/>
+                    <Button Content="{Binding ConnectLabel}" Command="{Binding ConnectDeviceCommand}"/>
+                    <Button Content="Capture New" Command="{Binding CaptureCommand}" Classes="go"
+                            ToolTip.Tip="Capture the phone screen and add it as a new screen"/>
+                    <Button Content="Replace Current" Command="{Binding CaptureReplaceCommand}" Classes="grab"
+                            ToolTip.Tip="Capture the phone screen and replace the selected screen's image"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Button Content="Load YAML…" Command="{Binding LoadCommand}"/>
+                    <Button Content="Save YAML…" Command="{Binding SaveCommand}"/>
+                    <Border Width="1" Background="#45454B" Margin="6,2"/>
+                    <Button Content="Generate" Command="{Binding GenerateCommand}" Classes="primary"/>
+                    <Button Content="Open Output" Command="{Binding OpenOutputCommand}"/>
+                    <Border Width="1" Background="#45454B" Margin="6,2"/>
+                    <Button Content="☕ Support this project" Command="{Binding SupportCommand}" Classes="support"
+                            ToolTip.Tip="screengen is free &amp; open source — support it on Buy Me a Coffee"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Status bar -->
+        <Border DockPanel.Dock="Bottom" Background="#202024" Padding="8,4">
+            <TextBlock Text="{Binding Status}" Opacity="0.8"/>
+        </Border>
+
+        <Grid Margin="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300"/>
+                <ColumnDefinition Width="*" MinWidth="200"/>
+                <ColumnDefinition Width="320"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- LEFT: screens -->
+            <DockPanel Grid.Column="0" Margin="0,0,8,0">
+                <TextBlock DockPanel.Dock="Top" Text="SCREENS" Classes="section" Margin="0,0,0,6"/>
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,6">
+                    <Button Content="Add" Command="{Binding AddScreenCommand}"/>
+                    <Button Content="Remove" Command="{Binding RemoveScreenCommand}"/>
+                    <Button Content="↑" Command="{Binding MoveUpCommand}" Width="36"/>
+                    <Button Content="↓" Command="{Binding MoveDownCommand}" Width="36"/>
+                </StackPanel>
+
+                <!-- selected screen editor -->
+                <Border DockPanel.Dock="Bottom" Background="#222226" Padding="8" Margin="0,8,0,0"
+                        BorderBrush="#3A3A40" BorderThickness="1" CornerRadius="4">
+                    <StackPanel>
+                        <TextBlock Text="Image" Classes="field"/>
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Content="Browse…" Command="{Binding BrowseImageCommand}" Margin="6,0,0,0"/>
+                            <TextBox Text="{Binding SelectedScreen.Image}"/>
+                        </DockPanel>
+                        <TextBlock Text="Title" Classes="field"/>
+                        <TextBox Text="{Binding SelectedScreen.Title}"/>
+                        <TextBlock Text="Subtitle" Classes="field"/>
+                        <TextBox Text="{Binding SelectedScreen.Subtitle}"
+                                 TextWrapping="Wrap" AcceptsReturn="True" MinLines="2"/>
+                    </StackPanel>
+                </Border>
+
+                <ListBox ItemsSource="{Binding Screens}" SelectedItem="{Binding SelectedScreen}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="local:ScreenItem">
+                            <TextBlock Text="{Binding Display}"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+
+            <!-- CENTER: preview -->
+            <DockPanel Grid.Column="1" Margin="0,0,8,0">
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                    <TextBlock Text="Preview target:" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <ComboBox ItemsSource="{Binding TargetNames}" SelectedItem="{Binding PreviewTarget}"
+                              Width="240" HorizontalAlignment="Left"/>
+                </DockPanel>
+                <TextBlock DockPanel.Dock="Bottom" Text="{Binding PreviewInfo}" Margin="0,6,0,0"
+                           HorizontalAlignment="Center" Opacity="0.8"/>
+                <Border Background="#161618" BorderBrush="#3A3A40" BorderThickness="1" CornerRadius="4">
+                    <Image Source="{Binding PreviewBitmap}" Stretch="Uniform" Margin="14"
+                           RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                </Border>
+            </DockPanel>
+
+            <!-- RIGHT: style + targets -->
+            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="PROJECT" Classes="section" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding Project}"/>
+
+                    <TextBlock Text="BACKGROUND" Classes="section"/>
+                    <ComboBox ItemsSource="{Binding BgTypes}" SelectedItem="{Binding BgType}" HorizontalAlignment="Stretch"/>
+                    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
+                        <ColorPicker Grid.Row="0" Grid.Column="0" Classes="swatch"
+                                     Color="{Binding BgCenter, Converter={StaticResource HexColor}, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding BgCenter}" Margin="0,2" ToolTip.Tip="gradient center"/>
+                        <ColorPicker Grid.Row="1" Grid.Column="0" Classes="swatch"
+                                     Color="{Binding BgEdge, Converter={StaticResource HexColor}, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding BgEdge}" Margin="0,2" ToolTip.Tip="gradient edge"/>
+                        <ColorPicker Grid.Row="2" Grid.Column="0" Classes="swatch"
+                                     Color="{Binding BgFlat, Converter={StaticResource HexColor}, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding BgFlat}" Margin="0,2" ToolTip.Tip="flat color"/>
+                    </Grid>
+
+                    <TextBlock Text="TEXT" Classes="section"/>
+                    <CheckBox Content="Uppercase title" IsChecked="{Binding Uppercase}"/>
+                    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+                        <ColorPicker Grid.Row="0" Grid.Column="0" Classes="swatch"
+                                     Color="{Binding TitleColor, Converter={StaticResource HexColor}, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding TitleColor}" Margin="0,2" ToolTip.Tip="title color"/>
+                        <ColorPicker Grid.Row="1" Grid.Column="0" Classes="swatch"
+                                     Color="{Binding SubtitleColor, Converter={StaticResource HexColor}, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SubtitleColor}" Margin="0,2" ToolTip.Tip="subtitle color"/>
+                    </Grid>
+                    <TextBlock Classes="field" Text="{Binding MaxSizePct, StringFormat='Title size {0:0.000}'}"/>
+                    <Slider Minimum="0.02" Maximum="0.12" Value="{Binding MaxSizePct}"/>
+                    <TextBlock Classes="field" Text="{Binding LetterSpacing, StringFormat='Letter spacing {0:0.000}'}"/>
+                    <Slider Minimum="0" Maximum="0.3" Value="{Binding LetterSpacing}"/>
+
+                    <TextBlock Text="FONTS" Classes="section"/>
+                    <TextBlock Text="Title font (pick a family or browse a file)" Classes="field"/>
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="File…" Command="{Binding BrowseTitleFontCommand}" Margin="6,0,0,0"/>
+                        <AutoCompleteBox ItemsSource="{Binding FontFamilies}" Text="{Binding TitleFont, Mode=TwoWay}"
+                                         FilterMode="Contains"/>
+                    </DockPanel>
+                    <TextBlock Text="{Binding TitleFontDisplay}" FontSize="11" Opacity="0.6" Margin="0,1,0,0"/>
+                    <TextBlock Text="Subtitle font" Classes="field"/>
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="File…" Command="{Binding BrowseSubtitleFontCommand}" Margin="6,0,0,0"/>
+                        <AutoCompleteBox ItemsSource="{Binding FontFamilies}" Text="{Binding SubtitleFont, Mode=TwoWay}"
+                                         FilterMode="Contains"/>
+                    </DockPanel>
+                    <TextBlock Text="{Binding SubtitleFontDisplay}" FontSize="11" Opacity="0.6" Margin="0,1,0,0"/>
+
+                    <TextBlock Text="LAYOUT" Classes="section"/>
+                    <TextBlock Classes="field" Text="{Binding TopMarginPct, StringFormat='Top margin {0:0.000}'}"/>
+                    <Slider Minimum="0" Maximum="0.2" Value="{Binding TopMarginPct}"/>
+                    <TextBlock Classes="field" Text="{Binding TitleToDeviceGapPct, StringFormat='Title→device gap {0:0.000}'}"/>
+                    <Slider Minimum="0" Maximum="0.2" Value="{Binding TitleToDeviceGapPct}"/>
+                    <TextBlock Classes="field" Text="{Binding DeviceWidthPct, StringFormat='Device size {0:0.000}'}"/>
+                    <Slider Minimum="0.3" Maximum="1.0" Value="{Binding DeviceWidthPct}"
+                            ToolTip.Tip="Scales the whole device. Smaller fits fully inside; larger bleeds off the bottom."/>
+
+                    <TextBlock Text="FRAME" Classes="section"/>
+                    <ComboBox ItemsSource="{Binding FrameTypes}" SelectedItem="{Binding FrameType}" HorizontalAlignment="Stretch"/>
+                    <TextBlock Classes="field" Text="Camera cutout (phones)"/>
+                    <ComboBox ItemsSource="{Binding Islands}" SelectedItem="{Binding Island}" HorizontalAlignment="Stretch"/>
+                    <TextBlock Classes="field" Text="Bezel color"/>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <ColorPicker Grid.Column="0" Classes="swatch"
+                                     Color="{Binding BezelColor, Converter={StaticResource HexColor}, Mode=TwoWay}"/>
+                        <TextBox Grid.Column="1" Text="{Binding BezelColor}" Margin="0,2"/>
+                    </Grid>
+                    <TextBlock Classes="field" Text="{Binding BezelWidthPct, StringFormat='Bezel width {0:0.000}'}"/>
+                    <Slider Minimum="0" Maximum="0.05" Value="{Binding BezelWidthPct}"/>
+                    <TextBlock Classes="field" Text="{Binding CornerRadiusPct, StringFormat='Corner radius {0:0.000}'}"/>
+                    <Slider Minimum="0" Maximum="0.2" Value="{Binding CornerRadiusPct}"/>
+
+                    <TextBlock Text="OUTPUT" Classes="section"/>
+                    <TextBlock Text="Folder" Classes="field"/>
+                    <TextBox Text="{Binding OutputDir}"/>
+                    <TextBlock Text="Format" Classes="field"/>
+                    <ComboBox ItemsSource="{Binding Formats}" SelectedItem="{Binding Format}" HorizontalAlignment="Stretch"/>
+                    <CheckBox Content="Also save original screenshots (originals/)" IsChecked="{Binding SaveOriginals}" Margin="0,6,0,2"/>
+
+                    <TextBlock Text="DEVICE CHROME (hide Android)" Classes="section"/>
+                    <CheckBox Content="Hide status bar (clock/battery/icons)" IsChecked="{Binding CleanStatusBar}"/>
+                    <TextBlock Classes="field" Text="{Binding StatusBarPct, StringFormat='Status bar height {0:0.000}'}"/>
+                    <Slider Minimum="0" Maximum="0.12" Value="{Binding StatusBarPct}"/>
+                    <CheckBox Content="Hide Flutter debug banner (top-right)" IsChecked="{Binding CleanDebugBanner}" Margin="0,6,0,2"/>
+                    <TextBlock Classes="field" Text="{Binding DebugBannerPct, StringFormat='Debug banner size {0:0.000}'}"/>
+                    <Slider Minimum="0" Maximum="0.35" Value="{Binding DebugBannerPct}"/>
+                    <TextBlock Classes="field" Text="Fill (&quot;auto&quot; samples the background, or pick a color)"/>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <ColorPicker Grid.Column="0" Classes="swatch"
+                                     Color="{Binding CleanFill, Converter={StaticResource HexColor}, Mode=TwoWay}"/>
+                        <TextBox Grid.Column="1" Text="{Binding CleanFill}" Margin="0,2"/>
+                    </Grid>
+
+                    <TextBlock Text="TARGETS TO GENERATE" Classes="section"/>
+                    <ItemsControl ItemsSource="{Binding Targets}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="local:TargetItem">
+                                <CheckBox IsChecked="{Binding IsSelected}" Content="{Binding Label}" Margin="0,2"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </DockPanel>
+</Window>

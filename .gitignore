@@ -34,6 +34,7 @@ artifacts/
 
 # Publish output
 publish/
+dist/
 
 ### Windows
 # Windows thumbnail cache files

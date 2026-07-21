@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    name: Build & test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      # SkiaSharp 3 needs fontconfig/freetype at runtime for the render tests.
+      - name: Install native deps (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1
+
+      - name: Restore
+        run: dotnet restore ScreenGen.sln
+
+      - name: Build
+        run: dotnet build ScreenGen.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test tests/ScreenGen.Tests/ScreenGen.Tests.csproj -c Release --no-build --verbosity normal

@@ -1,41 +1,44 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <ItemGroup>
-    <ProjectReference Include="..\ScreenGen\ScreenGen.csproj" />
-  </ItemGroup>
-
-  <!-- WinForms is referenced only for the native ColorDialog (aliased in
-       ColorPickerService). Drop its implicit global usings so WPF types
-       (Application, MessageBox, OpenFileDialog) stay unambiguous. -->
-  <ItemGroup>
-    <Using Remove="System.Windows.Forms" />
-    <Using Remove="System.Drawing" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="SkiaSharp.Views.WPF" Version="3.119.4" />
-  </ItemGroup>
-
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0-windows</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UseWPF>true</UseWPF>
-    <UseWindowsForms>true</UseWindowsForms>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <AssemblyName>ScreenGen.App</AssemblyName>
     <RootNamespace>ScreenGen.App</RootNamespace>
   </PropertyGroup>
 
-  <!-- Bundle the seed matrix + default font next to the exe so the app works
-       standalone (falls back to these when no config dir provides them). -->
   <ItemGroup>
-    <None Include="..\..\targets.yaml" Link="targets.yaml">
+    <ProjectReference Include="..\ScreenGen\ScreenGen.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.0" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.0" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.0" />
+    <PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.1.0" />
+    <!-- Match the SkiaSharp version the core renders with, so the live-preview
+         canvas and the core's SKImage share one native library. -->
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
+    <PackageReference Include="MessageBox.Avalonia" Version="12.0.0" />
+  </ItemGroup>
+
+  <!-- Bundle the seed matrix + default font next to the exe so the app works
+       standalone — both when running from bin and in a published release. -->
+  <ItemGroup>
+    <Content Include="..\..\targets.yaml" Link="targets.yaml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="..\..\assets\fonts\**\*.ttf" Link="assets\fonts\%(Filename)%(Extension)">
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\assets\fonts\Inter-VariableFont_opsz,wght.ttf" Link="assets\fonts\Inter-VariableFont_opsz,wght.ttf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>
