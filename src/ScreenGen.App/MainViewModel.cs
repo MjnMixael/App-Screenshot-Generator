@@ -156,8 +156,22 @@ public sealed class MainViewModel : ObservableObject
     public bool CleanDebugBanner { get => _cleanDebugBanner; set { if (Set(ref _cleanDebugBanner, value)) Edited(); } }
     private double _debugBannerPct = 0.16;
     public double DebugBannerPct { get => _debugBannerPct; set { if (Set(ref _debugBannerPct, value)) Edited(); } }
-    private string _cleanFill = "auto";
-    public string CleanFill { get => _cleanFill; set { if (Set(ref _cleanFill, value)) Edited(); } }
+    // Cleanup fill is either "auto" (sample the background) or an explicit color.
+    // Split into a toggle + a color so the UI is a checkbox + color picker; the
+    // last picked color is preserved while Auto is on.
+    private bool _cleanFillAuto = true;
+    public bool CleanFillAuto
+    {
+        get => _cleanFillAuto;
+        set { if (Set(ref _cleanFillAuto, value)) { Raise(nameof(CleanFillManual)); Edited(); } }
+    }
+    public bool CleanFillManual => !_cleanFillAuto;
+
+    private string _cleanFillColor = "#000000";
+    public string CleanFillColor { get => _cleanFillColor; set { if (Set(ref _cleanFillColor, value)) Edited(); } }
+
+    // The value written to config: "auto" or the chosen color.
+    private string CleanFill => CleanFillAuto ? "auto" : CleanFillColor;
 
     // --- collections ---
     public ObservableCollection<ScreenItem> Screens { get; } = new();
@@ -377,7 +391,10 @@ public sealed class MainViewModel : ObservableObject
             OutputDir = cfg.Output.Dir; Format = cfg.Output.Format; SaveOriginals = cfg.Output.SaveOriginals;
             CleanStatusBar = cfg.Cleanup.StatusBar; StatusBarPct = cfg.Cleanup.StatusBarPct;
             CleanDebugBanner = cfg.Cleanup.DebugBanner; DebugBannerPct = cfg.Cleanup.DebugBannerPct;
-            CleanFill = cfg.Cleanup.Fill;
+            if (string.IsNullOrWhiteSpace(cfg.Cleanup.Fill) ||
+                string.Equals(cfg.Cleanup.Fill, "auto", StringComparison.OrdinalIgnoreCase))
+                CleanFillAuto = true;
+            else { CleanFillAuto = false; CleanFillColor = cfg.Cleanup.Fill; }
 
             foreach (var s in Screens) s.PropertyChanged -= OnScreenChanged;
             Screens.Clear();

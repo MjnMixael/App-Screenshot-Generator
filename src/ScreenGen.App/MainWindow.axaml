@@ -234,11 +234,12 @@
                     <CheckBox Content="Hide Flutter debug banner (top-right)" IsChecked="{Binding CleanDebugBanner}" Margin="0,6,0,2"/>
                     <TextBlock Classes="field" Text="{Binding DebugBannerPct, StringFormat='Debug banner size {0:0.000}'}"/>
                     <Slider Minimum="0" Maximum="0.35" Value="{Binding DebugBannerPct}"/>
-                    <TextBlock Classes="field" Text="Fill (&quot;auto&quot; samples the background, or pick a color)"/>
-                    <Grid ColumnDefinitions="Auto,*">
+                    <TextBlock Classes="field" Text="Fill"/>
+                    <CheckBox Content="Auto — sample the background" IsChecked="{Binding CleanFillAuto}" Margin="0,0,0,2"/>
+                    <Grid ColumnDefinitions="Auto,*" IsEnabled="{Binding CleanFillManual}">
                         <ColorPicker Grid.Column="0" Classes="swatch"
-                                     Color="{Binding CleanFill, Converter={StaticResource HexColor}, Mode=TwoWay}"/>
-                        <TextBox Grid.Column="1" Text="{Binding CleanFill}" Margin="0,2"/>
+                                     Color="{Binding CleanFillColor, Converter={StaticResource HexColor}, Mode=TwoWay}"/>
+                        <TextBox Grid.Column="1" Text="{Binding CleanFillColor}" Margin="0,2"/>
                     </Grid>
 
                     <TextBlock Text="TARGETS TO GENERATE" Classes="section"/>
