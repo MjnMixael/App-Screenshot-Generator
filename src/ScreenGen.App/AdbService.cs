@@ -92,12 +92,50 @@ internal static class AdbService
     /// <summary>Capture the device's current screen as PNG bytes.</summary>
     public static async Task<byte[]> CaptureAsync(string adb, string serial)
     {
-        var (stdout, stderr, exit) = await RunAsync(adb, $"-s {serial} exec-out screencap -p");
+        var (stdout, stderr, exit) = await RunAsync(
+            adb,
+            $"-s {serial} exec-out screencap -p");
+
         if (exit != 0)
-            throw new InvalidOperationException($"adb screencap failed: {stderr.Trim()}");
-        if (stdout.Length < 8 || !stdout.AsSpan(0, 8).SequenceEqual(PngSignature))
-            throw new InvalidOperationException("adb did not return a PNG (is the screen on / device unlocked?)");
-        return stdout;
+            throw new InvalidOperationException(
+                $"adb screencap failed: {stderr.Trim()}");
+
+        // On devices with multiple displays, adb/screencap may emit a warning
+        // before the actual PNG data:
+        //
+        // [Warning] Multiple displays were found, but no display id was specified.
+        //
+        // Find the PNG signature rather than assuming it starts at byte 0.
+        var pngStart = FindPngStart(stdout);
+
+        if (pngStart < 0)
+            throw new InvalidOperationException(
+                "adb did not return a PNG (is the screen on / device unlocked?)");
+
+        if (pngStart == 0)
+            return stdout;
+
+        var png = new byte[stdout.Length - pngStart];
+        Buffer.BlockCopy(stdout, pngStart, png, 0, png.Length);
+
+        return png;
+    }
+
+    private static int FindPngStart(byte[] data)
+    {
+        if (data.Length < PngSignature.Length)
+            return -1;
+
+        for (var i = 0; i <= data.Length - PngSignature.Length; i++)
+        {
+            if (data.AsSpan(i, PngSignature.Length)
+                .SequenceEqual(PngSignature))
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     private static bool CanRun(string adb)
