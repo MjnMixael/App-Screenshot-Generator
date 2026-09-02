@@ -12,10 +12,11 @@ public sealed record AdbDevice(string Serial, string State, string Model)
 /// <summary>
 /// Information about the display Android currently considers active.
 ///
-/// LogicalId is Android's logical display ID, such as "0".
 /// PhysicalId is the physical display ID required by `screencap -d`.
+/// LogicalId is Android's logical display ID, such as "0" -- informational
+/// only, so a dump that omits it does not cost us the display.
 /// </summary>
-public sealed record ActiveDisplay(string LogicalId, string PhysicalId);
+public sealed record ActiveDisplay(string? LogicalId, string PhysicalId);
 
 /// <summary>
 /// Thin wrapper over the Android Debug Bridge CLI.
@@ -186,42 +187,46 @@ internal static class AdbService
     }
 
     /// <summary>
-    /// Determine which physical display is currently active.
+    /// Which physical display Android currently has active, or null if this
+    /// device will not tell us. Never throws -- callers treat "don't know" as
+    /// a normal answer and let screencap choose.
     ///
     /// Android exposes both a logical display ID and a physical display
-    /// ID. The logical ID is not necessarily valid for screencap -d.
-    ///
-    /// Example dumpsys display information:
-    ///
-    /// DisplayViewport{
-    ///     type=INTERNAL,
-    ///     valid=true,
-    ///     isActive=true,
-    ///     displayId=0,
-    ///     uniqueId='local:4630946481096930692',
-    ///     ...
-    /// }
-    ///
-    /// We use the physical ID from uniqueId because that is what
-    /// `screencap -d` expects.
+    /// ID. The logical ID is not necessarily valid for screencap -d, so we
+    /// take the physical one out of uniqueId, which is what `screencap -d`
+    /// expects and saves a second dumpsys call to SurfaceFlinger.
     /// </summary>
-    public static async Task<ActiveDisplay?> GetActiveDisplayAsync(
+    public static async Task<ActiveDisplay?> TryGetActiveDisplayAsync(
         string adb,
         string serial)
     {
-        var (stdout, stderr, exit) =
-            await RunAsync(
-                adb,
-                $"-s {serial} shell dumpsys display");
-
-        if (exit != 0)
+        try
         {
-            throw new InvalidOperationException(
-                $"adb dumpsys display failed: {stderr.Trim()}");
+            var (stdout, _, exit) =
+                await RunAsync(
+                    adb,
+                    $"-s {serial} shell dumpsys display");
+
+            return exit == 0
+                ? ParseActiveDisplay(Encoding.UTF8.GetString(stdout))
+                : null;
         }
+        catch
+        {
+            // A device we cannot read is one we capture the old way, not one
+            // we refuse to capture.
+            return null;
+        }
+    }
 
-        var text = Encoding.UTF8.GetString(stdout);
-
+    /// <summary>
+    /// Pick the active internal display out of `dumpsys display` output.
+    /// Returns null if this device's dump does not say, which is a normal
+    /// answer -- the format is a debug dump, not an API, and it varies by
+    /// Android version and vendor.
+    /// </summary>
+    private static ActiveDisplay? ParseActiveDisplay(string text)
+    {
         /*
          * The useful portion of dumpsys display looks approximately like:
          *
@@ -264,30 +269,28 @@ internal static class AdbService
 
             viewportStart = end + 1;
 
-            // We only care about the active viewport.
+            // We only care about the active viewport -- and only about a
+            // built-in panel. A cast, a screen recorder or Android Auto can
+            // put an active VIRTUAL/EXTERNAL viewport in this list, and
+            // capturing that instead of the phone screen is not what anyone
+            // pressing "Capture" meant.
             if (!viewport.Contains(
                     "isActive=true",
+                    StringComparison.Ordinal) ||
+                !viewport.Contains(
+                    "type=INTERNAL",
                     StringComparison.Ordinal))
             {
                 continue;
             }
-
-            var logicalId =
-                ExtractValue(
-                    viewport,
-                    "displayId=",
-                    ',');
 
             var uniqueId =
                 ExtractQuotedValue(
                     viewport,
                     "uniqueId='");
 
-            if (string.IsNullOrWhiteSpace(logicalId) ||
-                string.IsNullOrWhiteSpace(uniqueId))
-            {
+            if (string.IsNullOrWhiteSpace(uniqueId))
                 continue;
-            }
 
             const string localPrefix = "local:";
 
@@ -305,7 +308,7 @@ internal static class AdbService
                 continue;
 
             return new ActiveDisplay(
-                logicalId,
+                ExtractValue(viewport, "displayId=", ','),
                 physicalId);
         }
 
@@ -315,49 +318,76 @@ internal static class AdbService
     /// <summary>
     /// Capture the currently active physical display as PNG bytes.
     ///
-    /// The active display is determined immediately before the capture,
-    /// so opening/closing a foldable device between captures is handled
-    /// automatically.
+    /// The active display is resolved immediately before each capture, so
+    /// opening or closing a foldable between captures is handled on its own.
+    /// Naming the display is what stops a multi-display phone from handing us
+    /// whichever panel screencap enumerated first, but it depends on reading
+    /// `dumpsys display`. When that comes back in a shape we do not recognise
+    /// we let screencap pick, which is what every single-display phone did
+    /// before any of this -- an unreadable dump must not cost someone their
+    /// screenshot.
     /// </summary>
     public static async Task<byte[]> CaptureAsync(
         string adb,
         string serial)
     {
         var display =
-            await GetActiveDisplayAsync(
+            await TryGetActiveDisplayAsync(
                 adb,
                 serial);
 
-        if (display is null)
-        {
-            throw new InvalidOperationException(
-                "Could not determine the active display.");
-        }
+        var which =
+            display is null
+                ? "the default display"
+                : $"display {display.PhysicalId}";
 
         var (stdout, stderr, exit) =
             await RunAsync(
                 adb,
-                $"-s {serial} exec-out screencap -p -d {display.PhysicalId}");
+                display is null
+                    ? $"-s {serial} exec-out screencap -p"
+                    : $"-s {serial} exec-out screencap -p -d {display.PhysicalId}");
 
         if (exit != 0)
         {
             throw new InvalidOperationException(
-                $"adb screencap failed for active display " +
-                $"{display.PhysicalId}: {stderr.Trim()}");
+                $"adb screencap failed for {which}: {stderr.Trim()}");
         }
 
-        if (stdout.Length < PngSignature.Length ||
-            !stdout
-                .AsSpan(0, PngSignature.Length)
-                .SequenceEqual(PngSignature))
+        // `exec-out` merges the device's stderr into the same stream as its
+        // stdout, so screencap's own warnings arrive ahead of the image --
+        // notably the multi-display warning on a foldable when no display was
+        // named. Find the signature rather than assuming byte 0.
+        var pngStart = FindPngStart(stdout);
+
+        if (pngStart < 0)
         {
             throw new InvalidOperationException(
-                $"adb did not return a PNG for active display " +
-                $"{display.PhysicalId}.");
+                $"adb did not return a PNG for {which} " +
+                $"(is the screen on / device unlocked?)");
         }
 
-        return stdout;
+        if (pngStart == 0)
+            return stdout;
+
+        var png = new byte[stdout.Length - pngStart];
+
+        Buffer.BlockCopy(
+            stdout,
+            pngStart,
+            png,
+            0,
+            png.Length);
+
+        return png;
     }
+
+    /// <summary>
+    /// Index of the PNG signature within a capture stream, or -1 if there
+    /// isn't one.
+    /// </summary>
+    private static int FindPngStart(byte[] data) =>
+        data.AsSpan().IndexOf(PngSignature);
 
     /// <summary>
     /// Extract an unquoted value from a string.

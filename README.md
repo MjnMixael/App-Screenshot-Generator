@@ -51,6 +51,11 @@ over USB:
 Requires Android **platform-tools** (`adb`); it's auto-located on your PATH, via
 `ANDROID_HOME`/`ANDROID_SDK_ROOT`, or in `%LOCALAPPDATA%\Android\Sdk`.
 
+On a multi-display phone (a foldable, say) the capture names the display Android
+currently has active, so folding and unfolding between shots just works. If the
+phone doesn't report its displays in a shape we recognise, screencap picks one
+itself — the capture still succeeds, it just may not be the panel you meant.
+
 ### Hide device chrome (no hint of Android)
 
 Apple rejects screenshots that reveal another platform. The **DEVICE CHROME**
